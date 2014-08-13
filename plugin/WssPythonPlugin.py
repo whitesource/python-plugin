@@ -1,0 +1,136 @@
+import sys
+import json
+import shutil
+import tempfile
+import hashlib
+from distutils.sysconfig import get_python_lib
+
+import pkg_resources as pk_res
+from setuptools import Command
+from setuptools.package_index import PackageIndex
+from agent.dispatch.RequestType import RequestType
+from agent.dispatch.CheckPoliciesRequest import CheckPoliciesRequest
+from agent.model.AgentProjectInfo import AgentProjectInfo
+from agent.model.Coordinates import Coordinates
+from agent.model.DependencyInfo import DependencyInfo
+
+from agent.api.dispatch import UpdateInventoryRequest
+from agent.client import WssServiceClient
+
+
+class SetupToolsCommand(Command):
+    """setuptools Command"""
+    description = "Setuptools WSS plugin"
+
+    user_options = [
+        ('pathConfig=', 'p', 'Configuration file path'),
+    ]
+
+    def initialize_options(self):
+        self.config_dict = None
+        self.pathConfig = None
+        self.token = None
+        self.user_environment = None
+        self.dist_depend = None
+        self.pkg_index = PackageIndex()
+        self.dependency_list = []
+        self.project_coordinates = None
+        self.tmpdir = tempfile.mkdtemp(prefix="wss_python_plugin-")
+
+    def finalize_options(self):
+        sys.path.append(self.pathConfig)
+        self.config_dict = __import__('config_file').config_info
+        self.project_coordinates = create_project_coordinates(self.distribution)
+        self.user_environment = pk_res.Environment(get_python_lib(), platform=None, python=None)
+        distribution_specification = self.distribution.get_name() + "==" + self.distribution.get_version()
+        distribution_requirement = pk_res.Requirement.parse(distribution_specification)
+        self.dist_depend = pk_res.working_set.resolve([distribution_requirement], env=self.user_environment)
+        self.dist_depend.pop(0)
+
+    def run(self):
+        for dist in self.dist_depend:
+            try:
+                current_requirement = dist.as_requirement()
+                current_distribution = self.pkg_index.fetch_distribution(current_requirement, self.tmpdir,
+                                                                         force_scan=True, source=True, develop_ok=True)
+                if current_distribution is not None:
+                    self.dependency_list.append(create_dependency_record(current_distribution))
+            except Exception as err:
+                print "Error in fetching distribution: ", err
+        shutil.rmtree(self.tmpdir)
+        project = create_agent_project_info(self.project_coordinates, self.dependency_list,
+                                            self.config_dict['project_token'])
+        send_request(self.config_dict['request_type'], project, self.config_dict['org_token'],
+                     self.config_dict['product_name'], self.config_dict['product_version'],
+                     self.config_dict['url_destination'])
+
+
+def calc_hash(file_for_calculation):
+    """ Calculates sha1 of given file, src distribution in this case"""
+    block_size = 65536
+    hash_calculator = hashlib.sha1()
+    with open(file_for_calculation, 'rb') as dependency_file:
+        buf = dependency_file.read(block_size)
+        while len(buf) > 0:
+            hash_calculator.update(buf)
+            buf = dependency_file.read(block_size)
+    return hash_calculator.hexdigest()
+
+
+def create_dependency_record(distribution):
+    """ Creates a 'DependencyInfo' instance for package dependency"""
+    dist_group = distribution.key
+    dist_artifact = distribution.location.split("\\")[-1]
+    dist_version = distribution.version
+    dist_sha1 = calc_hash(distribution.location)
+    dependency = DependencyInfo(group_id=dist_group, artifact_id=dist_artifact, version_id=dist_version, sha1=dist_sha1)
+    return dependency
+
+
+def create_project_coordinates(distribution):
+    """ Creates a 'Coordinates' instance for the user package"""
+    dist_name = distribution.get_name()
+    dist_version = distribution.get_version()
+    coordinates = Coordinates(group_id=None, artifact_id=dist_name, version_id=dist_version)
+    return coordinates
+
+
+def create_agent_project_info(coordinates, dependencies, parent_coordinates=None, project_token=None):
+    """ Creates a 'AgentProjectInfo' instance formatted to send as part of the http request to the agent """
+    agent_project_info = AgentProjectInfo(coordinates, dependencies=dependencies, parent_coordinates=parent_coordinates,
+                                          project_token=project_token)
+    return agent_project_info
+
+
+def object_to_json(object):
+    return object.__dict__
+
+
+def send_request(request_type, project_info, token, product_name, product_version,
+                 service_url="http://localhost/agent"):
+    """ Creates json from 'project_info' and sends the http request to the agent according to the request type """
+
+    project_info_json = json.dumps([project_info], default=object_to_json, sort_keys=True, indent=4,
+                                   separators=(',', ': '))
+    request_factory = WssServiceClient(project_info_json, service_url)
+    projects = [project_info]
+
+    if request_type == RequestType.UPDATE:
+        action = UpdateInventoryRequest(token, product_name, product_version, projects)
+        bla = request_factory.update_inventory(action)
+        print "req is: ", bla.text
+    elif request_type == RequestType.CHECK_POLICIES:
+        action = CheckPoliciesRequest(token, product_name, product_version, projects)
+        request_factory.check_policies(action)
+    else:
+        print "No such request type"
+
+
+def open_required(file_name):
+    """ Creates a list of package dependencies as a string from a file"""
+    req = []
+    with open(file_name) as f:
+        dependencies = f.read().splitlines()
+    for dependency in dependencies:
+        req.append(dependency)
+    return req
