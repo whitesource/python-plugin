@@ -1,5 +1,4 @@
 import sys
-import json
 import shutil
 import tempfile
 import hashlib
@@ -8,14 +7,14 @@ from distutils.sysconfig import get_python_lib
 import pkg_resources as pk_res
 from setuptools import Command
 from setuptools.package_index import PackageIndex
-from agent.dispatch.RequestType import RequestType
-from agent.dispatch.CheckPoliciesRequest import CheckPoliciesRequest
-from agent.model.AgentProjectInfo import AgentProjectInfo
-from agent.model.Coordinates import Coordinates
-from agent.model.DependencyInfo import DependencyInfo
+from agent.api.dispatch.RequestType import RequestType
+from agent.api.dispatch.CheckPoliciesRequest import CheckPoliciesRequest
+from agent.api.model.AgentProjectInfo import AgentProjectInfo
+from agent.api.model.Coordinates import Coordinates
+from agent.api.model.DependencyInfo import DependencyInfo
 
-from agent.api.dispatch import UpdateInventoryRequest
-from agent.client import WssServiceClient
+from agent.api.dispatch.UpdateInventoryRequest import UpdateInventoryRequest
+from agent.client.WssServiceClient import WssServiceClient
 
 
 class SetupToolsCommand(Command):
@@ -80,7 +79,7 @@ def calc_hash(file_for_calculation):
 def create_dependency_record(distribution):
     """ Creates a 'DependencyInfo' instance for package dependency"""
     dist_group = distribution.key
-    dist_artifact = distribution.location.split("\\")[-1]
+    dist_artifact = distribution.location.split('\\')[-1]
     dist_version = distribution.version
     dist_sha1 = calc_hash(distribution.location)
     dependency = DependencyInfo(group_id=dist_group, artifact_id=dist_artifact, version_id=dist_version, sha1=dist_sha1)
@@ -102,26 +101,19 @@ def create_agent_project_info(coordinates, dependencies, parent_coordinates=None
     return agent_project_info
 
 
-def object_to_json(object):
-    return object.__dict__
-
-
 def send_request(request_type, project_info, token, product_name, product_version,
                  service_url="http://localhost/agent"):
-    """ Creates json from 'project_info' and sends the http request to the agent according to the request type """
+    """ Sends the http request to the agent according to the request type """
 
-    project_info_json = json.dumps([project_info], default=object_to_json, sort_keys=True, indent=4,
-                                   separators=(',', ': '))
-    request_factory = WssServiceClient(project_info_json, service_url)
+    request_factory = WssServiceClient(service_url)
     projects = [project_info]
 
-    if request_type == RequestType.UPDATE:
+    if request_type == RequestType.UPDATE.__str__().split('.')[-1]:
         action = UpdateInventoryRequest(token, product_name, product_version, projects)
-        bla = request_factory.update_inventory(action)
-        print "req is: ", bla.text
-    elif request_type == RequestType.CHECK_POLICIES:
+        result = request_factory.update_inventory(action)
+    elif request_type == RequestType.CHECK_POLICIES.__str__().split('.')[-1]:
         action = CheckPoliciesRequest(token, product_name, product_version, projects)
-        request_factory.check_policies(action)
+        result = request_factory.check_policies(action)
     else:
         print "No such request type"
 

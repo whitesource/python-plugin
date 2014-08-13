@@ -8,7 +8,7 @@ setup(
     author_email='yossi.weinberg@whitesourcesoftware.com',
 
     install_requires=["requests == 2.3.0"],
-    packages=['agent', 'agent.dispatch', 'agent.model', 'plugin'],
+    packages=['plugin', 'agent', 'agent.client', 'agent.api', 'agent.api.dispatch', 'agent.api.model'],
     include_package_data=True,
 
 )

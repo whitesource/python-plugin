@@ -1,3 +1,5 @@
 WssPlugin.egg-info/
 .idea/
 *.pyc
+build/
+dist/
