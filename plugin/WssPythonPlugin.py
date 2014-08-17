@@ -40,8 +40,8 @@ class SetupToolsCommand(Command):
         try:
             sys.path.append(self.pathConfig)
             self.config_dict = __import__('config_file').config_info
-        except Exception as err:
-            print "Can't import the config file. ", err
+        except:
+            sys.exit("Can't import the config file.")
         self.project_coordinates = create_project_coordinates(self.distribution)
         self.user_environment = pk_res.Environment(get_python_lib(), platform=None, python=None)
         distribution_specification = self.distribution.get_name() + "==" + self.distribution.get_version()
@@ -56,19 +56,37 @@ class SetupToolsCommand(Command):
         if self.dist_depend is not None:
             for dist in self.dist_depend:
                 try:
+                    # create a distribution instance from requirement instance
                     current_requirement = dist.as_requirement()
-                    current_distribution = self.pkg_index.fetch_distribution(current_requirement, self.tmpdir,
-                                                                             force_scan=True, source=True,
-                                                                             develop_ok=True)
+                    current_distribution = self.pkg_index.fetch_distribution(
+                        current_requirement, self.tmpdir, force_scan=True, source=True, develop_ok=True)
+
+                    # create dep. root
                     if current_distribution is not None:
                         self.dependency_list.append(create_dependency_record(current_distribution))
+
                 except Exception as err:
-                    print "Error in fetching", dist, "distribution: ", err
-            project = create_agent_project_info(self.project_coordinates, self.dependency_list,
-                                                self.config_dict['project_token'])
-            send_request(self.config_dict['request_type'], project, self.config_dict['org_token'],
+                    print "Error in fetching", dist, " distribution: ", err
+
+            # validate configuration
+
+            # create the actual project
+            project = create_agent_project_info(
+                self.project_coordinates, self.dependency_list, self.config_dict['project_token'])
+
+            # TODO send check policies request
+
+            # TODO handle result:
+            # 1. create html
+            # 2. If violation: exit
+            # else - send update request
+
+            # send update request
+            result = send_request(self.config_dict['request_type'], project, self.config_dict['org_token'],
                          self.config_dict['product_name'], self.config_dict['product_version'],
                          self.config_dict['url_destination'])
+
+            # TODO print result to log
         else:
             "No dependencies were found"
         shutil.rmtree(self.tmpdir)
@@ -112,37 +130,44 @@ def create_agent_project_info(coordinates, dependencies, parent_coordinates=None
 
 
 def send_request(request_type, project_info, token, product_name, product_version,
-                 service_url="http://localhost/agent"):
+                 service_url="https://saas.whitesourcesoftware.com/agent"):
     """ Sends the http request to the agent according to the request type """
     try:
         validate_config_file(request_type, token)
-    except Exception as err:
-        print "Config file is not properly set.", err
-    request_factory = WssServiceClient(service_url)
+    except:
+        sys.exit("Config file is not properly set.")
+    service = WssServiceClient(service_url)
     projects = [project_info]
-    request_result = None
+    result = None
 
+    # create
     if request_type == RequestType.UPDATE.__str__().split('.')[-1]:
-        action = UpdateInventoryRequest(token, product_name, product_version, projects)
-        request_result = request_factory.update_inventory(action)
+        request = UpdateInventoryRequest(token, product_name, product_version, projects)
+        result = service.update_inventory(request)
     elif request_type == RequestType.CHECK_POLICIES.__str__().split('.')[-1]:
-        action = CheckPoliciesRequest(token, product_name, product_version, projects)
-        request_result = request_factory.check_policies(action)
-    return request_result
+        request = CheckPoliciesRequest(token, product_name, product_version, projects)
+        result = service.check_policies(request)
+    return result
 
 
 def open_required(file_name):
     """ Creates a list of package dependencies as a requirement string from the file"""
     req = []
-    with open(file_name) as f:
-        dependencies = f.read().splitlines()
-    for dependency in dependencies:
-        req.append(dependency)
-    return req
+    try:
+        with open(file_name) as f:
+            dependencies = f.read().splitlines()
+        for dependency in dependencies:
+            req.append(dependency)
+        return req
+    except Exception as err:
+        print "No requirements file"
+        return req
 
 
 def validate_config_file(request_type, token):
+    """ Validate content of config file params """
     if (request_type != 'UPDATE') and (request_type != 'CHECK_POLICIES'):
         raise Exception("Invalid request type")
-    if token is None:
+    if token is '':
         raise Exception("Empty domain token")
+
