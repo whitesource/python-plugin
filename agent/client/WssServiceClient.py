@@ -9,9 +9,11 @@ class WssServiceClient:
         self.service_url = service_url
 
     def update_inventory(self, update_request):
+        """ Create update request"""
         return self.service(update_request)
 
     def check_policies(self, policies_request):
+        """ Create check policies request"""
         return self.service(policies_request)
 
     def service(self, request):
@@ -20,6 +22,7 @@ class WssServiceClient:
         return request
 
     def create_http_request(self, request):
+        """ Create the actual http request to be sent to the agent"""
         sent_request_json = self.create_request_json(request)
         params_dict = {'type': request.request_type.__str__().split('.')[-1],
                        'agent': request.agent,
