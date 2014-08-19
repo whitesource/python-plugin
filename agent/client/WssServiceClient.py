@@ -8,17 +8,24 @@ class WssServiceClient:
     def __init__(self, service_url):
         self.service_url = service_url
 
-    def update_inventory(self, update_request):
+    def update_inventory(self, update_request, debuging):
         """ Create update request"""
-        return self.service(update_request)
+        return self.service(update_request, debuging)
 
     def check_policies(self, policies_request):
         """ Create check policies request"""
         return self.service(policies_request)
 
-    def service(self, request):
+    def service(self, request, debuging):
         headers = {'content-type': 'application/json'}
-        request = requests.post(self.service_url, headers=headers, params=self.create_http_request(request))
+        params_dict = self.create_http_request(request)
+        if debuging == 'y':
+            print "The request is:\n"
+            for key in params_dict:
+                print key + ": ", params_dict[key]
+        request = requests.post(self.service_url, headers=headers, params=params_dict)
+        if debuging == 'y':
+            print "the request result is: ", request.text
         return request
 
     def create_http_request(self, request):

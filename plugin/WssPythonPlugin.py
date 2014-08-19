@@ -23,9 +23,11 @@ class SetupToolsCommand(Command):
 
     user_options = [
         ('pathConfig=', 'p', 'Configuration file path'),
+        ('debuging=', 'd', 'Prints data to screen'),
     ]
 
     def initialize_options(self):
+        self.debuging = None
         self.config_dict = None
         self.pathConfig = None
         self.token = None
@@ -64,10 +66,13 @@ class SetupToolsCommand(Command):
                         self.dependency_list.append(create_dependency_record(current_distribution))
                 except Exception as err:
                     print "Error in fetching", dist, "distribution: ", err
+            print "Finished processing dependencies \n"
             project = create_agent_project_info(self.project_coordinates, self.dependency_list,
                                                 self.config_dict['project_token'])
+            if self.debuging == 'y':
+                print "Sending http request"
             send_request(self.config_dict['request_type'], project, self.config_dict['org_token'],
-                         self.config_dict['product_name'], self.config_dict['product_version'],
+                         self.config_dict['product_name'], self.config_dict['product_version'], self.debuging,
                          self.config_dict['url_destination'])
         else:
             "No dependencies were found"
@@ -111,7 +116,7 @@ def create_agent_project_info(coordinates, dependencies, parent_coordinates=None
     return agent_project_info
 
 
-def send_request(request_type, project_info, token, product_name, product_version,
+def send_request(request_type, project_info, token, product_name, product_version, debuging,
                  service_url="http://localhost/agent"):
     """ Sends the http request to the agent according to the request type """
     try:
@@ -124,7 +129,7 @@ def send_request(request_type, project_info, token, product_name, product_versio
 
     if request_type == RequestType.UPDATE.__str__().split('.')[-1]:
         action = UpdateInventoryRequest(token, product_name, product_version, projects)
-        request_result = request_factory.update_inventory(action)
+        request_result = request_factory.update_inventory(action, debuging)
     elif request_type == RequestType.CHECK_POLICIES.__str__().split('.')[-1]:
         action = CheckPoliciesRequest(token, product_name, product_version, projects)
         request_result = request_factory.check_policies(action)
