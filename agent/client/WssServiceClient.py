@@ -1,5 +1,9 @@
 import requests
 import json
+import jsonpickle
+from agent.api.dispatch.RequestType import RequestType
+from agent.api.dispatch import ResultEnvelope
+from agent.api.dispatch import UpdateInventoryResult
 
 
 class WssServiceClient:
@@ -17,13 +21,22 @@ class WssServiceClient:
         return self.service(policies_request)
 
     def service(self, request):
+        result = None
         headers = {'content-type': 'application/json'}
-        request = requests.post(self.service_url, headers=headers, params=self.create_http_request(request))
-        return request
+        response = requests.post(self.service_url, headers=headers, params=self.create_http_request(request))
+        result_envelope = ResultEnvelope.json_to_result_envelope(response.text)
+
+        if request.request_type == RequestType.UPDATE:
+            result = UpdateInventoryResult.json_to_update_inventory(result_envelope.data)
+        if request.request_type == RequestType.CHECK_POLICIES:
+            pass
+        # Todo: create policies check result object
+
+        return result
 
     def create_http_request(self, request):
         """ Create the actual http request to be sent to the agent """
-        sent_request_json = self.create_request_json(request)
+        sent_request_json = jsonpickle.encode(request.projects, unpicklable=False)
         params_dict = {'type': request.request_type.__str__().split('.')[-1],
                        'agent': request.agent,
                        'agentVersion': request.agent_version,
@@ -33,17 +46,3 @@ class WssServiceClient:
                        'timeStamp': request.time_stamp,
                        'diff': sent_request_json}
         return params_dict
-
-    @staticmethod
-    def create_request_json(request):
-        """ Creates a json out of a request"""
-
-        def object_to_json(obj):
-            return obj.__dict__
-
-        project_info_json = json.dumps(request.projects, default=object_to_json, sort_keys=True, indent=4,
-                                       separators=(',', ': '))
-        return project_info_json
-
-
-

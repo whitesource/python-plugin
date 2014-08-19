@@ -8,8 +8,6 @@ import pkg_resources as pk_res
 from setuptools import Command
 from setuptools.package_index import PackageIndex
 
-from agent.api.dispatch.RequestType import RequestType
-from agent.api.dispatch.CheckPoliciesRequest import CheckPoliciesRequest
 from agent.api.model.AgentProjectInfo import AgentProjectInfo
 from agent.api.model.Coordinates import Coordinates
 from agent.api.model.DependencyInfo import DependencyInfo
@@ -26,6 +24,7 @@ class SetupToolsCommand(Command):
     ]
 
     def initialize_options(self):
+        self.service = None
         self.config_dict = None
         self.pathConfig = None
         self.token = None
@@ -53,6 +52,37 @@ class SetupToolsCommand(Command):
             print "distribution was not found on this system, and is required by this application", err
 
     def run(self):
+        self.validate_config_file()
+        self.scan_modules()
+        self.create_service()
+
+        # create the actual project
+        project = AgentProjectInfo(self.project_coordinates, self.dependency_list, self.config_dict['project_token'])
+
+        # TODO send check policies request and handle result:
+        # 1. create html
+        # 2. If violation: exit
+        # else - send update request
+
+        # send update request
+        print "Sending request"
+        self.send_update_request(project, self.config_dict['org_token'], self.config_dict['product_name'],
+                                 self.config_dict['product_version'])
+
+        shutil.rmtree(self.tmpdir)
+
+    def validate_config_file(self):
+        """ Validate content of config file params """
+        # org token
+        if 'org_token' in self.config_dict:
+            if self.config_dict['org_token'] == '':
+                sys.exit("Organization token is empty")
+        else:
+            sys.exit("No organization token option exists")
+
+        # Todo: check existence of other keys in dict
+
+    def scan_modules(self):
         if self.dist_depend is not None:
             for dist in self.dist_depend:
                 try:
@@ -67,29 +97,21 @@ class SetupToolsCommand(Command):
 
                 except Exception as err:
                     print "Error in fetching", dist, " distribution: ", err
-
-            # validate configuration
-
-            # create the actual project
-            project = create_agent_project_info(
-                self.project_coordinates, self.dependency_list, self.config_dict['project_token'])
-
-            # TODO send check policies request
-
-            # TODO handle result:
-            # 1. create html
-            # 2. If violation: exit
-            # else - send update request
-
-            # send update request
-            result = send_request(self.config_dict['request_type'], project, self.config_dict['org_token'],
-                         self.config_dict['product_name'], self.config_dict['product_version'],
-                         self.config_dict['url_destination'])
-
-            # TODO print result to log
         else:
             "No dependencies were found"
-        shutil.rmtree(self.tmpdir)
+
+    def create_service(self):
+        if ('url_destination' in self.config_dict) and (self.config_dict['url_destination'] != ''):
+            self.service = WssServiceClient(self.config_dict['url_destination'])
+        else:
+            self.service = WssServiceClient("https://saas.whitesourcesoftware.com/agent")
+
+    def send_update_request(self, project_info, token, product_name, product_version):
+        """ Sends the update request to the agent according to the request type """
+        projects = [project_info]
+        request = UpdateInventoryRequest(token, product_name, product_version, projects)
+        result = self.service.update_inventory(request)
+        print_update_result(result)
 
 
 def calc_hash(file_for_calculation):
@@ -122,32 +144,50 @@ def create_project_coordinates(distribution):
     return coordinates
 
 
-def create_agent_project_info(coordinates, dependencies, parent_coordinates=None, project_token=None):
-    """ Creates a 'AgentProjectInfo' instance formatted to send as part of the http request to the agent """
-    agent_project_info = AgentProjectInfo(coordinates, dependencies=dependencies, parent_coordinates=parent_coordinates,
-                                          project_token=project_token)
-    return agent_project_info
+# def send_check_policies_request(request_type, project_info, token, product_name, product_version,
+#                  service_url="https://saas.whitesourcesoftware.com/agent"):
+#     """ Sends the http request to the agent according to the request type """
+#     # try:
+#     #     validate_config_file(request_type, token)
+#     # except:
+#     #     sys.exit("Config file is not properly set.")
+#     projects = [project_info]
+#     result = None
+#
+#     # create
+#     if request_type == RequestType.UPDATE.__str__().split('.')[-1]:
+#         request = UpdateInventoryRequest(token, product_name, product_version, projects)
+#         result = service.update_inventory(request)
+#     elif request_type == RequestType.CHECK_POLICIES.__str__().split('.')[-1]:
+#         request = CheckPoliciesRequest(token, product_name, product_version, projects)
+#         result = service.check_policies(request)
+#     return result
+def print_update_result(result):
+    """ Prints the result of the http request"""
+    output = "White Source update results: \n"
+    output += "White Source organization: " + result.organization + "\n"
 
+    # newly created projects
+    created_project = result.created_projects
+    if not created_project:
+        output += "No new projects found \n"
+    else:
+        created_projects_num = len(created_project)
+        output += str(created_projects_num) + " Newly created projects: "
+        for project in created_project:
+            output += project + ", "
 
-def send_request(request_type, project_info, token, product_name, product_version,
-                 service_url="https://saas.whitesourcesoftware.com/agent"):
-    """ Sends the http request to the agent according to the request type """
-    try:
-        validate_config_file(request_type, token)
-    except:
-        sys.exit("Config file is not properly set.")
-    service = WssServiceClient(service_url)
-    projects = [project_info]
-    result = None
+    #updated projects
+    updated_projects = result.updated_projects
+    if not updated_projects:
+        output += "\nNo projects were updated \n"
+    else:
+        updated_projects_num = len(updated_projects)
+        output += str(updated_projects_num) + " existing projects were updated: "
+        for project in updated_projects:
+            output += project + ", "
 
-    # create
-    if request_type == RequestType.UPDATE.__str__().split('.')[-1]:
-        request = UpdateInventoryRequest(token, product_name, product_version, projects)
-        result = service.update_inventory(request)
-    elif request_type == RequestType.CHECK_POLICIES.__str__().split('.')[-1]:
-        request = CheckPoliciesRequest(token, product_name, product_version, projects)
-        result = service.check_policies(request)
-    return result
+    print output
 
 
 def open_required(file_name):
@@ -163,11 +203,4 @@ def open_required(file_name):
         print "No requirements file"
         return req
 
-
-def validate_config_file(request_type, token):
-    """ Validate content of config file params """
-    if (request_type != 'UPDATE') and (request_type != 'CHECK_POLICIES'):
-        raise Exception("Invalid request type")
-    if token is '':
-        raise Exception("Empty domain token")
 
