@@ -12,3 +12,10 @@ class BaseRequest:
         self.time_stamp = str(int(time.time()))
         self.agent = 'generic'
         self.agent_version = '1.0'
+
+    def to_string(self):
+        result = "UpdateInventoryRequest \n" + "request type= " + self.request_type + ","
+        result += "\n org_token= " + self.org_token + ","
+        result += "\n product= " + self.product + ","
+        result += "\n product_version= " + str(self.product_version) + "\n"
+        return result

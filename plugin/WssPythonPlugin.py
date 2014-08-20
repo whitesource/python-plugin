@@ -13,6 +13,7 @@ from agent.api.model.AgentProjectInfo import AgentProjectInfo
 from agent.api.model.Coordinates import Coordinates
 from agent.api.model.DependencyInfo import DependencyInfo
 from agent.api.dispatch.UpdateInventoryRequest import UpdateInventoryRequest
+from agent.api.dispatch.CheckPoliciesRequest import CheckPoliciesRequest
 from agent.client.WssServiceClient import WssServiceClient
 
 
@@ -80,8 +81,8 @@ class SetupToolsCommand(Command):
         # else - send update request
 
         # send update request
-        self.send_update_request(project, self.config_dict['org_token'], self.config_dict['product_name'],
-                                 self.config_dict['product_version'])
+        self.update_inventory(project, self.config_dict['org_token'], self.config_dict['product_name'],
+                              self.config_dict['product_version'])
 
     def validate_config_file(self):
         """ Validate content of config file params """
@@ -127,12 +128,20 @@ class SetupToolsCommand(Command):
 
         logging.debug("The destination url is set to: " + self.service.to_string())
 
-    def send_update_request(self, project_info, token, product_name, product_version):
+    def update_inventory(self, project_info, token, product_name, product_version):
         """ Sends the update request to the agent according to the request type """
-        logging.debug("Creating update request")
+        logging.debug("Updating White Source")
         projects = [project_info]
         request = UpdateInventoryRequest(token, product_name, product_version, projects)
         result = self.service.update_inventory(request)
+        print_update_result(result)
+
+    def check_policies(self, project_info, token, product_name, product_version):
+        """ Sends the update request to the agent according to the request type """
+        logging.debug("Checking policies")
+        projects = [project_info]
+        request = UpdateInventoryRequest(token, product_name, product_version, projects)
+        result = self.service.check_policies(request)
         print_update_result(result)
 
 
@@ -166,24 +175,6 @@ def create_project_coordinates(distribution):
     return coordinates
 
 
-# def send_check_policies_request(request_type, project_info, token, product_name, product_version,
-# service_url="https://saas.whitesourcesoftware.com/agent"):
-#     """ Sends the http request to the agent according to the request type """
-#     # try:
-#     #     validate_config_file(request_type, token)
-#     # except:
-#     #     sys.exit("Config file is not properly set.")
-#     projects = [project_info]
-#     result = None
-#
-#     # create
-#     if request_type == RequestType.UPDATE.__str__().split('.')[-1]:
-#         request = UpdateInventoryRequest(token, product_name, product_version, projects)
-#         result = service.update_inventory(request)
-#     elif request_type == RequestType.CHECK_POLICIES.__str__().split('.')[-1]:
-#         request = CheckPoliciesRequest(token, product_name, product_version, projects)
-#         result = service.check_policies(request)
-#     return result
 def print_update_result(result):
     """ Prints the result of the http request"""
     output = "White Source update results: \n"
@@ -211,6 +202,8 @@ def print_update_result(result):
 
     print output
 
+
+#def handle_policy_result(result):
 
 def open_required(file_name):
     """ Creates a list of package dependencies as a requirement string from the file"""

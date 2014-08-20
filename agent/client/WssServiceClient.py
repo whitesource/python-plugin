@@ -4,6 +4,7 @@ import jsonpickle
 from agent.api.dispatch.RequestType import RequestType
 from agent.api.dispatch import ResultEnvelope
 from agent.api.dispatch import UpdateInventoryResult
+from agent.api.dispatch import CheckPoliciesResult
 
 
 class WssServiceClient:
@@ -44,8 +45,7 @@ class WssServiceClient:
                 if request.request_type == RequestType.UPDATE:
                     result = UpdateInventoryResult.json_to_update_inventory(result_envelope.data)
                 if request.request_type == RequestType.CHECK_POLICIES:
-                    pass
-                    # Todo: create policies check result object
+                    result = CheckPoliciesResult.json_to_check_policies(result_envelope.data)
             except Exception as err:
                 print "Error parsing response", err.message
 
