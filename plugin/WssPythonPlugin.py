@@ -2,6 +2,7 @@ import sys
 import shutil
 import tempfile
 import hashlib
+import logging
 from distutils.sysconfig import get_python_lib
 
 import pkg_resources as pk_res
@@ -21,9 +22,11 @@ class SetupToolsCommand(Command):
 
     user_options = [
         ('pathConfig=', 'p', 'Configuration file path'),
+        ('debug=', 'd', 'Show debugging output'),
     ]
 
     def initialize_options(self):
+        self.debug = None
         self.service = None
         self.config_dict = None
         self.pathConfig = None
@@ -36,20 +39,29 @@ class SetupToolsCommand(Command):
         self.tmpdir = tempfile.mkdtemp(prefix="wss_python_plugin-")
 
     def finalize_options(self):
+        if self.debug == 'y':
+            logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+
+        # load and import config file
         try:
             sys.path.append(self.pathConfig)
             self.config_dict = __import__('config_file').config_info
-        except:
-            sys.exit("Can't import the config file.")
+            logging.info('Loading config_file was successful')
+        except Exception as err:
+            sys.exit("Can't import the config file." + err.message)
+
         self.project_coordinates = create_project_coordinates(self.distribution)
         self.user_environment = pk_res.Environment(get_python_lib(), platform=None, python=None)
         distribution_specification = self.distribution.get_name() + "==" + self.distribution.get_version()
         distribution_requirement = pk_res.Requirement.parse(distribution_specification)
+
+        # resolve all dependencies
         try:
             self.dist_depend = pk_res.working_set.resolve([distribution_requirement], env=self.user_environment)
             self.dist_depend.pop(0)
+            logging.info("Finished resolving dependencies")
         except Exception as err:
-            print "distribution was not found on this system, and is required by this application", err
+            print "distribution was not found on this system, and is required by this application", err.message
 
     def run(self):
         self.validate_config_file()
@@ -57,7 +69,10 @@ class SetupToolsCommand(Command):
         self.create_service()
 
         # create the actual project
-        project = AgentProjectInfo(self.project_coordinates, self.dependency_list, self.config_dict['project_token'])
+        project_token = self.config_dict['project_token']
+        if project_token == '':
+            project_token = None
+        project = AgentProjectInfo(self.project_coordinates, self.dependency_list, project_token)
 
         # TODO send check policies request and handle result:
         # 1. create html
@@ -65,11 +80,8 @@ class SetupToolsCommand(Command):
         # else - send update request
 
         # send update request
-        print "Sending request"
         self.send_update_request(project, self.config_dict['org_token'], self.config_dict['product_name'],
                                  self.config_dict['product_version'])
-
-        shutil.rmtree(self.tmpdir)
 
     def validate_config_file(self):
         """ Validate content of config file params """
@@ -80,9 +92,12 @@ class SetupToolsCommand(Command):
         else:
             sys.exit("No organization token option exists")
 
+        logging.info("Validation of config file was successful")
         # Todo: check existence of other keys in dict
 
     def scan_modules(self):
+        """ Downloads all the dependencies calculates their sha1 and creates a list of dependencies info"""
+
         if self.dist_depend is not None:
             for dist in self.dist_depend:
                 try:
@@ -96,18 +111,25 @@ class SetupToolsCommand(Command):
                         self.dependency_list.append(create_dependency_record(current_distribution))
 
                 except Exception as err:
-                    print "Error in fetching", dist, " distribution: ", err
+                    print "Error in fetching distribution: " + dist
+            logging.info("Finished calculation for all dependencies")
         else:
-            "No dependencies were found"
+            logging.info("No dependencies were found")
+
+        shutil.rmtree(self.tmpdir)
 
     def create_service(self):
+        """ Creates a WssServiceClient instance with the destination url"""
         if ('url_destination' in self.config_dict) and (self.config_dict['url_destination'] != ''):
             self.service = WssServiceClient(self.config_dict['url_destination'])
         else:
             self.service = WssServiceClient("https://saas.whitesourcesoftware.com/agent")
 
+        logging.debug("The destination url is set to: " + self.service.to_string())
+
     def send_update_request(self, project_info, token, product_name, product_version):
         """ Sends the update request to the agent according to the request type """
+        logging.debug("Creating update request")
         projects = [project_info]
         request = UpdateInventoryRequest(token, product_name, product_version, projects)
         result = self.service.update_inventory(request)
@@ -145,7 +167,7 @@ def create_project_coordinates(distribution):
 
 
 # def send_check_policies_request(request_type, project_info, token, product_name, product_version,
-#                  service_url="https://saas.whitesourcesoftware.com/agent"):
+# service_url="https://saas.whitesourcesoftware.com/agent"):
 #     """ Sends the http request to the agent according to the request type """
 #     # try:
 #     #     validate_config_file(request_type, token)
@@ -194,13 +216,14 @@ def open_required(file_name):
     """ Creates a list of package dependencies as a requirement string from the file"""
     req = []
     try:
+        # Read the file and add each line in it as a dependency requirement string
         with open(file_name) as f:
             dependencies = f.read().splitlines()
         for dependency in dependencies:
             req.append(dependency)
         return req
     except Exception as err:
-        print "No requirements file"
+        print "No requirements file", err.message
         return req
 
 

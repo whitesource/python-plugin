@@ -1,5 +1,5 @@
 import requests
-import json
+import logging
 import jsonpickle
 from agent.api.dispatch.RequestType import RequestType
 from agent.api.dispatch import ResultEnvelope
@@ -12,6 +12,10 @@ class WssServiceClient:
     def __init__(self, service_url):
         self.service_url = service_url
 
+    def to_string(self):
+        result = "service url= " + self.service_url
+        return result
+
     def update_inventory(self, update_request):
         """ Create update request """
         return self.service(update_request)
@@ -23,26 +27,54 @@ class WssServiceClient:
     def service(self, request):
         result = None
         headers = {'content-type': 'application/json'}
-        response = requests.post(self.service_url, headers=headers, params=self.create_http_request(request))
-        result_envelope = ResultEnvelope.json_to_result_envelope(response.text)
+        request_params = self.create_http_request(request)
 
-        if request.request_type == RequestType.UPDATE:
-            result = UpdateInventoryResult.json_to_update_inventory(result_envelope.data)
-        if request.request_type == RequestType.CHECK_POLICIES:
-            pass
-        # Todo: create policies check result object
+        logging.debug("The request params are: " + print_request_params(request_params))
+        logging.debug("Sending the http request")
+
+        try:
+            # send http request
+            response = requests.post(self.service_url, headers=headers, params=request_params)
+            logging.debug("The response to the request is: " + response.text)
+
+            try:
+                # deal with response of the request
+                result_envelope = ResultEnvelope.json_to_result_envelope(response.text)
+
+                if request.request_type == RequestType.UPDATE:
+                    result = UpdateInventoryResult.json_to_update_inventory(result_envelope.data)
+                if request.request_type == RequestType.CHECK_POLICIES:
+                    pass
+                    # Todo: create policies check result object
+            except Exception as err:
+                print "Error parsing response", err.message
+
+        except requests.RequestException as err:
+            print "Unable to send http request", err.message
 
         return result
 
     def create_http_request(self, request):
         """ Create the actual http request to be sent to the agent """
-        sent_request_json = jsonpickle.encode(request.projects, unpicklable=False)
-        params_dict = {'type': request.request_type.__str__().split('.')[-1],
-                       'agent': request.agent,
-                       'agentVersion': request.agent_version,
-                       'token': request.org_token,
-                       'product': request.product,
-                       'productVersion': request.product_version,
-                       'timeStamp': request.time_stamp,
-                       'diff': sent_request_json}
+        params_dict = None
+        try:
+            sent_request_json = jsonpickle.encode(request.projects, unpicklable=False)
+            logging.debug("The request json is: " + sent_request_json)
+            params_dict = {'type': request.request_type.__str__().split('.')[-1],
+                           'agent': request.agent,
+                           'agentVersion': request.agent_version,
+                           'token': request.org_token,
+                           'product': request.product,
+                           'productVersion': request.product_version,
+                           'timeStamp': request.time_stamp,
+                           'diff': sent_request_json}
+        except Exception as err:
+            print "Not able to process request parameters", err.message
         return params_dict
+
+
+def print_request_params(params):
+    result = ''
+    for key in params:
+        result += str(params[key]) + "\n"
+    return result
