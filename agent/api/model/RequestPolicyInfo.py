@@ -1,8 +1,36 @@
 class RequestPolicyInfo:
-    def __init__(self, display_name, filter_type, filter_logic, action_type, action_logic, project_level):
-        self.project_level = project_level
-        self.action_logic = action_logic
-        self.action_type = action_type
-        self.filter_logic = filter_logic
-        self.filter_type = filter_type
+    def __init__(self, display_name=None, filter_type=None, filter_logic=None, action_type=None, action_logic=None,
+                 project_level=None):
+        self.projectLevel = project_level
+        self.actionLogic = action_logic
+        self.actionType = action_type
+        self.filterLogic = filter_logic
+        self.filterType = filter_type
         self.displayName = display_name
+
+
+def from_dict(info_dict):
+    policy_info = RequestPolicyInfo()
+
+    if 'displayName' in info_dict:
+        policy_info.displayName = info_dict['displayName']
+
+    if 'filterType' in info_dict:
+        policy_info.filterType = info_dict['filterType']
+
+    if 'filterLogic' in info_dict:
+        policy_info.filterLogic = info_dict['filterLogic']
+
+    if 'actionType' in info_dict:
+        policy_info.actionType = info_dict['actionType']
+
+    if 'actionLogic' in info_dict:
+        policy_info.actionLogic = info_dict['actionLogic']
+
+    if 'projectLevel' in info_dict:
+        policy_info.projectLevel = info_dict['projectLevel']
+
+    return policy_info
+
+
+

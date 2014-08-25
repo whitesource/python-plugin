@@ -11,10 +11,10 @@ class WssServiceClient:
     """ Http request creation and execution (update/check_policies) """
 
     def __init__(self, service_url):
-        self.service_url = service_url
+        self.serviceUrl = service_url
 
     def to_string(self):
-        result = "service url= " + self.service_url
+        result = "service url= " + self.serviceUrl
         return result
 
     def update_inventory(self, update_request):
@@ -35,16 +35,16 @@ class WssServiceClient:
 
         try:
             # send http request
-            response = requests.post(self.service_url, headers=headers, params=request_params)
+            response = requests.post(self.serviceUrl, headers=headers, params=request_params)
             logging.debug("The response to the request is: " + response.text)
 
             try:
                 # deal with response of the request
                 result_envelope = ResultEnvelope.json_to_result_envelope(response.text)
 
-                if request.request_type == RequestType.UPDATE:
+                if request.requestType == RequestType.UPDATE:
                     result = UpdateInventoryResult.json_to_update_inventory(result_envelope.data)
-                if request.request_type == RequestType.CHECK_POLICIES:
+                if request.requestType == RequestType.CHECK_POLICIES:
                     result = CheckPoliciesResult.json_to_check_policies(result_envelope.data)
             except Exception as err:
                 print "Error parsing response", err.message
@@ -60,13 +60,13 @@ class WssServiceClient:
         try:
             sent_request_json = jsonpickle.encode(request.projects, unpicklable=False)
             logging.debug("The request json is: " + sent_request_json)
-            params_dict = {'type': request.request_type.__str__().split('.')[-1],
+            params_dict = {'type': request.requestType.__str__().split('.')[-1],
                            'agent': request.agent,
-                           'agentVersion': request.agent_version,
-                           'token': request.org_token,
+                           'agentVersion': request.agentVersion,
+                           'token': request.orgToken,
                            'product': request.product,
-                           'productVersion': request.product_version,
-                           'timeStamp': request.time_stamp,
+                           'productVersion': request.productVersion,
+                           'timeStamp': request.timeStamp,
                            'diff': sent_request_json}
         except Exception as err:
             print "Not able to process request parameters", err.message

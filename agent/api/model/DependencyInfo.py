@@ -5,12 +5,12 @@ class DependencyInfo:
                  classifier=None, scope=None, system_path=None, optional=None, children=[], exclusions=[]):
         self.children = children
         self.optional = optional
-        self.system_path = system_path
+        self.systemPath = system_path
         self.scope = scope
         self.classifier = classifier
         self.exclusions = exclusions
         self.sha1 = sha1
-        self.dependency_type = dependency_type
-        self.version_id = version_id
-        self.group_id = group_id
-        self.artifact_id = artifact_id
+        self.dependencyType = dependency_type
+        self.versionId = version_id
+        self.groupId = group_id
+        self.artifactId = artifact_id
