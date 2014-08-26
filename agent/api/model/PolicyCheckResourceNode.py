@@ -12,6 +12,8 @@ class PolicyCheckResourceNode:
             self.children = children
 
     def has_rejections(self):
+        """ Checks if any of the children of the node have rejection policy """
+
         index = 0
 
         if self.policy is None:
@@ -28,6 +30,8 @@ class PolicyCheckResourceNode:
 
 
 def from_dict(node_dict):
+    """ Creates a ResourceNode object from dict """
+
     policy_check_node = PolicyCheckResourceNode()
 
     if 'resource' in node_dict.keys():
@@ -50,6 +54,8 @@ def from_dict(node_dict):
 
 
 def find_rejected_node(node):
+    """ Recursively find the libraries that have a rejected policy """
+
     rejected_nodes = []
 
     if node.policy:

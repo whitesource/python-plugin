@@ -10,6 +10,8 @@ class ResultEnvelope(object):
         self.envelopeVersion = envelope_version
 
     def to_string(self):
+        """ Prints the class instance """
+
         result = "ResultEnvelope \n" + "envelopeVersion= " + self.envelopeVersion + ","
         result += "\nstatus= " + str(self.status) + ","
         result += "\nmessage= " + self.message + ","
@@ -22,7 +24,8 @@ def json_to_result_envelope(json):
 
     try:
         json_dict = jsonpickle.decode(json)
-        res_env = ResultEnvelope(json_dict['envelopeVersion'], json_dict['status'], json_dict['message'], json_dict['data'])
+        res_env = ResultEnvelope(json_dict['envelopeVersion'], json_dict['status'], json_dict['message'],
+                                 json_dict['data'])
         logging.debug("The resulted envelope is: " + res_env.to_string())
         return res_env
     except Exception as err:

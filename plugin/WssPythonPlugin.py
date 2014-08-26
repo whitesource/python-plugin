@@ -1,3 +1,4 @@
+from collections import defaultdict
 import sys
 import shutil
 import tempfile
@@ -11,7 +12,7 @@ from setuptools.package_index import PackageIndex
 from agent.api.model import PolicyCheckResourceNode
 
 from agent.api.model.AgentProjectInfo import AgentProjectInfo
-from agent.api.model.Coordinates import Coordinates
+from agent.api.model import Coordinates
 from agent.api.model.DependencyInfo import DependencyInfo
 from agent.api.dispatch.UpdateInventoryRequest import UpdateInventoryRequest
 from agent.api.dispatch.CheckPoliciesRequest import CheckPoliciesRequest
@@ -41,8 +42,10 @@ class SetupToolsCommand(Command):
         self.tmpdir = tempfile.mkdtemp(prefix="wss_python_plugin-")
 
     def finalize_options(self):
+        # log file activation and config
         if self.debug == 'y':
-            logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+            logging.basicConfig(format='%(asctime)s%(levelname)s:%(message)s', level=logging.DEBUG,
+                                filename='wss_plugin.log')
 
         # load and import config file
         try:
@@ -52,7 +55,7 @@ class SetupToolsCommand(Command):
         except Exception as err:
             sys.exit("Can't import the config file." + err.message)
 
-        self.projectCoordinates = create_project_coordinates(self.distribution)
+        self.projectCoordinates = Coordinates.create_project_coordinates(self.distribution)
         self.userEnvironment = pk_res.Environment(get_python_lib(), platform=None, python=None)
         distribution_specification = self.distribution.get_name() + "==" + self.distribution.get_version()
         distribution_requirement = pk_res.Requirement.parse(distribution_specification)
@@ -71,15 +74,14 @@ class SetupToolsCommand(Command):
         self.create_service()
         project = self.create_project_obj()
 
-        # send check policies request
         self.check_policies(project, self.configDict['org_token'], self.configDict['product_name'],
                             self.configDict['product_version'])
-        # send update request
         self.update_inventory(project, self.configDict['org_token'], self.configDict['product_name'],
                               self.configDict['product_version'])
 
     def validate_config_file(self):
         """ Validate content of config file params """
+
         # org token
         if 'org_token' in self.configDict:
             if self.configDict['org_token'] == '':
@@ -93,20 +95,20 @@ class SetupToolsCommand(Command):
     def scan_modules(self):
         """ Downloads all the dependencies calculates their sha1 and creates a list of dependencies info"""
 
-        if self.distDepend is not None:
+        if self.distDepend:
             for dist in self.distDepend:
                 try:
-                    # create a distribution instance from requirement instance
+                    # create a dist instance from requirement instance
                     current_requirement = dist.as_requirement()
                     current_distribution = self.pkgIndex.fetch_distribution(
                         current_requirement, self.tmpdir, force_scan=True, source=True, develop_ok=True)
 
                     # create dep. root
-                    if current_distribution is not None:
+                    if current_distribution:
                         self.dependencyList.append(create_dependency_record(current_distribution))
 
                 except Exception as err:
-                    print "Error in fetching distribution: " + dist
+                    print "Error in fetching dists" + dist
             logging.info("Finished calculation for all dependencies")
         else:
             logging.info("No dependencies were found")
@@ -114,7 +116,8 @@ class SetupToolsCommand(Command):
         shutil.rmtree(self.tmpdir)
 
     def create_service(self):
-        """ Creates a WssServiceClient instance with the destination url"""
+        """ Creates a WssServiceClient with the destination url"""
+
         if ('url_destination' in self.configDict) and (self.configDict['url_destination'] != ''):
             self.service = WssServiceClient(self.configDict['url_destination'])
         else:
@@ -128,15 +131,19 @@ class SetupToolsCommand(Command):
         project_token = self.configDict['project_token']
         if project_token == '':
             project_token = None
+
         return AgentProjectInfo(self.projectCoordinates, self.dependencyList, project_token)
 
     def check_policies(self, project_info, token, product_name, product_version):
         """ Sends the update request to the agent according to the request type """
+
         if self.configDict['check_policies']:
             logging.debug("Checking policies")
+
             projects = [project_info]
             request = CheckPoliciesRequest(token, product_name, product_version, projects)
             result = self.service.check_policies(request)
+
             try:
                 self.handle_policies_result(result)
             except Exception as err:
@@ -144,9 +151,10 @@ class SetupToolsCommand(Command):
 
     def handle_policies_result(self, result):
         """ Checks if any policies rejected if so stops """
+
         logging.debug("Creating policies report")
         if result.has_rejections():
-            print_check_policies(result)
+            print_policies_rejection(result)
             logging.info("Some dependencies do not conform with open source policies")
             raise
         else:
@@ -154,7 +162,9 @@ class SetupToolsCommand(Command):
 
     def update_inventory(self, project_info, token, product_name, product_version):
         """ Sends the update request to the agent according to the request type """
+
         logging.debug("Updating White Source")
+
         projects = [project_info]
         request = UpdateInventoryRequest(token, product_name, product_version, projects)
         result = self.service.update_inventory(request)
@@ -163,6 +173,7 @@ class SetupToolsCommand(Command):
 
 def calc_hash(file_for_calculation):
     """ Calculates sha1 of given file, src distribution in this case"""
+
     block_size = 65536
     hash_calculator = hashlib.sha1()
     with open(file_for_calculation, 'rb') as dependency_file:
@@ -175,6 +186,7 @@ def calc_hash(file_for_calculation):
 
 def create_dependency_record(distribution):
     """ Creates a 'DependencyInfo' instance for package dependency"""
+
     dist_group = distribution.key
     dist_artifact = distribution.location.split('\\')[-1]
     dist_version = distribution.version
@@ -183,34 +195,28 @@ def create_dependency_record(distribution):
     return dependency
 
 
-def create_project_coordinates(distribution):
-    """ Creates a 'Coordinates' instance for the user package"""
-    dist_name = distribution.get_name()
-    dist_version = distribution.get_version()
-    coordinates = Coordinates(group_id=None, artifact_id=dist_name, version_id=dist_version)
-    return coordinates
-
-
-def print_check_policies(result):
+def print_policies_rejection(result):
     """ Prints the result of the check policies result"""
-    output = "Rejected Libraries:\n"
+
+    projects_dict = None
+
     if result.newProjects:
-        output += print_project_policies_rejection(result.newProjects)
+        projects_dict = create_policy_dict(result.newProjects)
     if result.existingProjects:
-        output += print_project_policies_rejection(result.existingProjects)
+        projects_dict = dict(projects_dict.items() + create_policy_dict(result.existingProjects).items())
 
-    print output
+    if projects_dict:
+        print print_project_policies_rejection(projects_dict)
 
 
-def print_project_policies_rejection(projects):
+def print_project_policies_rejection(policy_dict):
     """ Prints the the policy and corresponding rejected resources from projects"""
     output = ''
 
-    # project iterator
-    for project, resource_node in projects.iteritems():
-        rejected_node = PolicyCheckResourceNode.find_rejected_node(resource_node)
-        #rejected node iterator
-        for node in rejected_node:
+    for policy in policy_dict:
+        # policy
+        output += "Rejected by Policy " + '"' + policy + '":\n'
+        for node in policy_dict[policy]:
             # name
             output += "\t* " + node.resource.displayName
 
@@ -220,16 +226,29 @@ def print_project_policies_rejection(projects):
                 license_output = " ("
                 for lice in licenses:
                     license_output += lice + ", "
-                output += license_output[:-2] + ")"
-
-            # policy
-            output += " - Rejected by Policy " + '"' + node.policy.displayName + '"\n'
-
+                output += license_output[:-2] + ") \n"
     return output
+
+
+def create_policy_dict(projects):
+    """ Creates a dict of policies and the rejected libs by them"""
+
+    policy_dict = defaultdict(list)
+
+    # project iterator
+    for project, resource_node in projects.iteritems():
+        rejected_node = PolicyCheckResourceNode.find_rejected_node(resource_node)
+
+        # rejected node iterator
+        for node in rejected_node:
+            policy_dict[node.policy.displayName].append(node)
+
+    return policy_dict
 
 
 def print_update_result(result):
     """ Prints the result of the update result"""
+
     output = "White Source update results: \n"
     output += "White Source organization: " + result.organization + "\n"
 
@@ -243,7 +262,7 @@ def print_update_result(result):
         for project in created_project:
             output += project + " "
 
-    #updated projects
+    # updated projects
     updated_projects = result.updatedProjects
     if not updated_projects:
         output += "\nNo projects were updated \n"
@@ -258,6 +277,7 @@ def print_update_result(result):
 
 def open_required(file_name):
     """ Creates a list of package dependencies as a requirement string from the file"""
+
     req = []
     try:
         # Read the file and add each line in it as a dependency requirement string

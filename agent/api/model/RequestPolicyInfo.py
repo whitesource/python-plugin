@@ -10,6 +10,8 @@ class RequestPolicyInfo:
 
 
 def from_dict(info_dict):
+    """ Creates a RequestPolicyInfo object from a dict """
+
     policy_info = RequestPolicyInfo()
 
     if 'displayName' in info_dict:

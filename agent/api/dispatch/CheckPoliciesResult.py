@@ -30,6 +30,7 @@ class CheckPoliciesResult(object):
 
     def has_rejections(self):
         """ Returns True if some project in this result have some rejected dependency. """
+
         has_rejections = False
         index = 0
         roots = self.existingProjects.values() + self.newProjects.values()
@@ -58,6 +59,8 @@ def json_to_check_policies(json):
 
 
 def from_dict_to_resource_node(projects):
+    """ Creates a ResourceNode object from a project dict """
+
     node_projects = {}
     for key, node in projects.items():
         node_projects[key] = PolicyCheckResourceNode.from_dict(node)
@@ -66,6 +69,8 @@ def from_dict_to_resource_node(projects):
 
 
 def from_dict_to_resource_infos(projects):
+    """ Creates a ResourceInfo object from a project dict """
+
     info_dict = {}
     for key, resources_dict_list in projects.items():
         resources = []

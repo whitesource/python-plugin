@@ -9,6 +9,8 @@ class ResourceInfo:
 
 
 def from_dict(info_dict):
+    """ Creates a ResourceInfo object from a dict """
+
     resource_info = ResourceInfo()
 
     if 'licenses' in info_dict:

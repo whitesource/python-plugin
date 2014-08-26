@@ -14,18 +14,24 @@ class WssServiceClient:
         self.serviceUrl = service_url
 
     def to_string(self):
+        """ Prints the class instance """
+
         result = "service url= " + self.serviceUrl
         return result
 
     def update_inventory(self, update_request):
         """ Create update request """
+
         return self.service(update_request)
 
     def check_policies(self, policies_request):
         """ Create check policies request """
+
         return self.service(policies_request)
 
     def service(self, request):
+        """ Sends http request and parses the response """
+
         result = None
         headers = {'content-type': 'application/json'}
         request_params = self.create_http_request(request)
@@ -56,6 +62,7 @@ class WssServiceClient:
 
     def create_http_request(self, request):
         """ Create the actual http request to be sent to the agent """
+
         params_dict = None
         try:
             sent_request_json = jsonpickle.encode(request.projects, unpicklable=False)

@@ -14,6 +14,8 @@ class BaseRequest:
         self.agentVersion = '1.0'
 
     def to_string(self):
+        """ Prints the class instance """
+
         result = "UpdateInventoryRequest \n" + "request type= " + self.requestType + ","
         result += "\n org_token= " + self.orgToken + ","
         result += "\n product= " + self.product + ","
