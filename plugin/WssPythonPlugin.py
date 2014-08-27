@@ -8,7 +8,7 @@ from distutils.sysconfig import get_python_lib
 
 import pkg_resources as pk_res
 from setuptools import Command
-from setuptools.package_index import PackageIndex
+from setuptools.package_index import PackageIndex, os
 from agent.api.model import PolicyCheckResourceNode
 
 from agent.api.model.AgentProjectInfo import AgentProjectInfo
@@ -188,7 +188,10 @@ def create_dependency_record(distribution):
     """ Creates a 'DependencyInfo' instance for package dependency"""
 
     dist_group = distribution.key
-    dist_artifact = distribution.location.split('\\')[-1]
+    if os.name == 'nt':
+        dist_artifact = distribution.location.split('\\')[-1]
+    else:
+        dist_artifact = distribution.location.split('/')[-1]
     dist_version = distribution.version
     dist_sha1 = calc_hash(distribution.location)
     dependency = DependencyInfo(group_id=dist_group, artifact_id=dist_artifact, version_id=dist_version, sha1=dist_sha1)

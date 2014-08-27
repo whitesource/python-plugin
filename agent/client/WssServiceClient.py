@@ -36,7 +36,7 @@ class WssServiceClient:
         headers = {'content-type': 'application/json'}
         request_params = self.create_http_request(request)
 
-        logging.debug("The request params are: " + print_request_params(request_params))
+        logging.debug("The request params are:\n" + print_request_params(request_params))
         logging.debug("Sending the http request")
 
         try:
@@ -66,7 +66,7 @@ class WssServiceClient:
         params_dict = None
         try:
             sent_request_json = jsonpickle.encode(request.projects, unpicklable=False)
-            logging.debug("The request json is: " + sent_request_json)
+            logging.debug("The request json is:\n" + sent_request_json)
             params_dict = {'type': request.requestType.__str__().split('.')[-1],
                            'agent': request.agent,
                            'agentVersion': request.agentVersion,
@@ -83,5 +83,5 @@ class WssServiceClient:
 def print_request_params(params):
     result = ''
     for key in params:
-        result += str(params[key]) + "\n"
+        result += key + ': ' + str(params[key]) + "\n"
     return result
