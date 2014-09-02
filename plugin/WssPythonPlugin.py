@@ -30,6 +30,7 @@ class SetupToolsCommand(Command):
 
     def initialize_options(self):
         self.debug = None
+        self.proxySetting = None
         self.service = None
         self.configDict = None
         self.pathConfig = None
@@ -55,6 +56,9 @@ class SetupToolsCommand(Command):
         except Exception as err:
             sys.exit("Can't import the config file." + err.message)
 
+        # load proxy setting if exist
+        if 'proxy' in self.configDict:
+            self.proxySetting = self.configDict['proxy']
         self.projectCoordinates = Coordinates.create_project_coordinates(self.distribution)
         self.userEnvironment = pk_res.Environment(get_python_lib(), platform=None, python=None)
         distribution_specification = self.distribution.get_name() + "==" + self.distribution.get_version()
@@ -72,12 +76,7 @@ class SetupToolsCommand(Command):
         self.validate_config_file()
         self.scan_modules()
         self.create_service()
-        project = self.create_project_obj()
-
-        self.check_policies(project, self.configDict['org_token'], self.configDict['product_name'],
-                            self.configDict['product_version'])
-        self.update_inventory(project, self.configDict['org_token'], self.configDict['product_name'],
-                              self.configDict['product_version'])
+        self.run_plugin()
 
     def validate_config_file(self):
         """ Validate content of config file params """
@@ -119,25 +118,44 @@ class SetupToolsCommand(Command):
         """ Creates a WssServiceClient with the destination url"""
 
         if ('url_destination' in self.configDict) and (self.configDict['url_destination'] != ''):
-            self.service = WssServiceClient(self.configDict['url_destination'])
+            self.service = WssServiceClient(self.configDict['url_destination'], self.proxySetting)
         else:
-            self.service = WssServiceClient("https://saas.whitesourcesoftware.com/agent")
+            self.service = WssServiceClient("https://saas.whitesourcesoftware.com/agent", self.proxySetting)
 
         logging.debug("The destination url is set to: " + self.service.to_string())
+
+    def run_plugin(self):
+        """ Initializes the plugin requests"""
+
+        org_token = self.configDict['org_token']
+        project = self.create_project_obj()
+        product = ''
+        product_version = ''
+
+        if 'product_name' in self.configDict:
+            product = self.configDict['product_name']
+
+        if 'product_version' in self.configDict:
+            product_version = self.configDict['product_version']
+
+        self.check_policies(project, org_token, product, product_version)
+        self.update_inventory(project, org_token, product, product_version)
 
     def create_project_obj(self):
         """ create the actual project """
 
-        project_token = self.configDict['project_token']
-        if project_token == '':
-            project_token = None
+        project_token = None
+        if 'project_token' in self.configDict:
+            project_token = self.configDict['project_token']
+            if project_token == '':
+                project_token = None
 
         return AgentProjectInfo(self.projectCoordinates, self.dependencyList, project_token)
 
     def check_policies(self, project_info, token, product_name, product_version):
-        """ Sends the update request to the agent according to the request type """
+        """ Sends the check policies request to the agent according to the request type """
 
-        if self.configDict['check_policies']:
+        if ('check_policies' in self.configDict) and (self.configDict['check_policies']):
             logging.debug("Checking policies")
 
             projects = [project_info]

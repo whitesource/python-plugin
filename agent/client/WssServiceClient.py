@@ -10,7 +10,8 @@ from agent.api.dispatch import CheckPoliciesResult
 class WssServiceClient:
     """ Http request creation and execution (update/check_policies) """
 
-    def __init__(self, service_url):
+    def __init__(self, service_url, proxy_setting=None):
+        self.proxySetting = proxy_setting
         self.serviceUrl = service_url
 
     def to_string(self):
@@ -32,16 +33,20 @@ class WssServiceClient:
     def service(self, request):
         """ Sends http request and parses the response """
 
+        proxy = None
         result = None
         headers = {'content-type': 'application/json'}
         request_params = self.create_http_request(request)
+
+        if self.proxySetting:
+            proxy = self.create_proxy()
 
         logging.debug("The request params are:\n" + print_request_params(request_params))
         logging.debug("Sending the http request")
 
         try:
             # send http request
-            response = requests.post(self.serviceUrl, headers=headers, params=request_params)
+            response = requests.post(self.serviceUrl, headers=headers, params=request_params, proxies=proxy)
             logging.debug("The response to the request is: " + response.text)
 
             try:
@@ -78,6 +83,22 @@ class WssServiceClient:
         except Exception as err:
             print "Not able to process request parameters", err.message
         return params_dict
+
+    def create_proxy(self):
+        """ Create the proxy dict for the http request from the config file """
+
+        proxy_dict = {}
+        proxy_str = ""
+
+        if ('host' in self.proxySetting) and ('port' in self.proxySetting):
+            if (self.proxySetting['host'] != '') and (self.proxySetting['port'] != ''):
+                if ('user' in self.proxySetting) and ('password' in self.proxySetting):
+                    if (self.proxySetting['user'] != '') and (self.proxySetting['password'] != ''):
+                        proxy_str += "http://" + self.proxySetting['user'] + ":" + self.proxySetting['password'] + "@"
+                proxy_str += self.proxySetting['host'] + ":" + self.proxySetting['port']
+                proxy_dict['http'] = proxy_str
+
+        return proxy_dict
 
 
 def print_request_params(params):
