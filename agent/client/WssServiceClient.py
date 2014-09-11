@@ -35,7 +35,8 @@ class WssServiceClient:
 
         proxy = None
         result = None
-        headers = {'content-type': 'application/json'}
+        headers = {'Accept': 'application/json',
+                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
         request_params = self.create_http_request(request)
 
         if self.proxySetting:
@@ -46,7 +47,7 @@ class WssServiceClient:
 
         try:
             # send http request
-            response = requests.post(self.serviceUrl, headers=headers, params=request_params, proxies=proxy)
+            response = requests.post(self.serviceUrl, headers=headers, data=request_params, proxies=proxy)
             logging.debug("The response to the request is: " + response.text)
 
             try:
@@ -90,12 +91,12 @@ class WssServiceClient:
         proxy_dict = {}
         proxy_str = ""
 
-        if ('host' in self.proxySetting) and ('port' in self.proxySetting):
-            if (self.proxySetting['host'] != '') and (self.proxySetting['port'] != ''):
+        if ('ip' in self.proxySetting) and ('port' in self.proxySetting):
+            if (self.proxySetting['ip'] != '') and (self.proxySetting['port'] != ''):
                 if ('user' in self.proxySetting) and ('password' in self.proxySetting):
                     if (self.proxySetting['user'] != '') and (self.proxySetting['password'] != ''):
                         proxy_str += "http://" + self.proxySetting['user'] + ":" + self.proxySetting['password'] + "@"
-                proxy_str += self.proxySetting['host'] + ":" + self.proxySetting['port']
+                proxy_str += self.proxySetting['ip'] + ":" + self.proxySetting['port']
                 proxy_dict['http'] = proxy_str
 
         return proxy_dict
