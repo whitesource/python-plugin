@@ -94,7 +94,7 @@ class SetupToolsCommand(Command):
     def scan_modules(self):
         """ Downloads all the dependencies calculates their sha1 and creates a list of dependencies info"""
 
-        if self.distDepend:
+        if self.distDepend is not None:
             for dist in self.distDepend:
                 try:
                     # create a dist instance from requirement instance
@@ -103,7 +103,7 @@ class SetupToolsCommand(Command):
                         current_requirement, self.tmpdir, force_scan=True, source=True, develop_ok=True)
 
                     # create dep. root
-                    if current_distribution:
+                    if current_distribution is not None:
                         self.dependencyList.append(create_dependency_record(current_distribution))
 
                 except Exception as err:
@@ -219,15 +219,19 @@ def create_dependency_record(distribution):
 def print_policies_rejection(result):
     """ Prints the result of the check policies result"""
 
-    projects_dict = None
+    if result is not None:
+        projects_dict = None
 
-    if result.newProjects:
-        projects_dict = create_policy_dict(result.newProjects)
-    if result.existingProjects:
-        projects_dict = dict(projects_dict.items() + create_policy_dict(result.existingProjects).items())
+        if result.newProjects:
+            projects_dict = create_policy_dict(result.newProjects)
+        if result.existingProjects:
+            projects_dict = dict(projects_dict.items() + create_policy_dict(result.existingProjects).items())
 
-    if projects_dict:
-        print print_project_policies_rejection(projects_dict)
+        if projects_dict is not None:
+            print print_project_policies_rejection(projects_dict)
+    else:
+        print "There was a problem with the check policies result"
+        logging.DEBUG("The check policies result is empty")
 
 
 def print_project_policies_rejection(policy_dict):
@@ -243,7 +247,7 @@ def print_project_policies_rejection(policy_dict):
 
             # licenses
             licenses = node.resource.licenses
-            if licenses:
+            if licenses is not None:
                 license_output = " ("
                 for lice in licenses:
                     license_output += lice + ", "
@@ -269,31 +273,34 @@ def create_policy_dict(projects):
 
 def print_update_result(result):
     """ Prints the result of the update result"""
+    if result is not None:
+        output = "White Source update results: \n"
+        output += "White Source organization: " + result.organization + "\n"
 
-    output = "White Source update results: \n"
-    output += "White Source organization: " + result.organization + "\n"
+        # newly created projects
+        created_project = result.createdProjects
+        if not created_project:
+            output += "No new projects found \n"
+        else:
+            created_projects_num = len(created_project)
+            output += str(created_projects_num) + " newly created projects: "
+            for project in created_project:
+                output += project + " "
 
-    # newly created projects
-    created_project = result.createdProjects
-    if not created_project:
-        output += "No new projects found \n"
+        # updated projects
+        updated_projects = result.updatedProjects
+        if not updated_projects:
+            output += "\nNo projects were updated \n"
+        else:
+            updated_projects_num = len(updated_projects)
+            output += str(updated_projects_num) + " existing projects were updated: "
+            for project in updated_projects:
+                output += project + " "
+
+        print output
     else:
-        created_projects_num = len(created_project)
-        output += str(created_projects_num) + " newly created projects: "
-        for project in created_project:
-            output += project + " "
-
-    # updated projects
-    updated_projects = result.updatedProjects
-    if not updated_projects:
-        output += "\nNo projects were updated \n"
-    else:
-        updated_projects_num = len(updated_projects)
-        output += str(updated_projects_num) + " existing projects were updated: "
-        for project in updated_projects:
-            output += project + " "
-
-    print output
+        print "There was a problem with the update result"
+        logging.debug("The update result is empty")
 
 
 def open_required(file_name):
