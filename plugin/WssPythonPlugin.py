@@ -59,6 +59,9 @@ class SetupToolsCommand(Command):
         # load proxy setting if exist
         if 'proxy' in self.configDict:
             self.proxySetting = self.configDict['proxy']
+        if 'repo_url' in self.configDict:
+            self.pkgIndex = PackageIndex(index_url=self.configDict['repo_url'])
+
         self.projectCoordinates = Coordinates.create_project_coordinates(self.distribution)
         self.userEnvironment = pk_res.Environment(get_python_lib(), platform=None, python=None)
         distribution_specification = self.distribution.get_name() + "==" + self.distribution.get_version()
@@ -107,7 +110,7 @@ class SetupToolsCommand(Command):
                         self.dependencyList.append(create_dependency_record(current_distribution))
 
                 except Exception as err:
-                    print "Error in fetching dists" + dist
+                    print "Error in fetching dists " + dist.key + " " + dist.version
             logging.info("Finished calculation for all dependencies")
         else:
             logging.info("No dependencies were found")
