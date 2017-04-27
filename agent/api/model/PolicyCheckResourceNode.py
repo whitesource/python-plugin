@@ -1,5 +1,5 @@
-import ResourceInfo
-import RequestPolicyInfo
+from agent.api.model import ResourceInfo
+from agent.api.model import RequestPolicyInfo
 
 
 class PolicyCheckResourceNode:
@@ -65,4 +65,4 @@ def find_rejected_node(node):
         for child in node.children:
             rejected_nodes += find_rejected_node(child)
 
-    return  rejected_nodes
+    return rejected_nodes

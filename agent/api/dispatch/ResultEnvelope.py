@@ -29,5 +29,5 @@ def json_to_result_envelope(json):
         logging.debug("The resulted envelope is: " + res_env.to_string())
         return res_env
     except Exception as err:
-        print "Unable to parse json response to ResultEnvelope object", err.message
+        print("Unable to parse json response to ResultEnvelope object", err.message)
         raise

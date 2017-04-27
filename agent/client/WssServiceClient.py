@@ -59,10 +59,10 @@ class WssServiceClient:
                 if request.requestType == RequestType.CHECK_POLICIES:
                     result = CheckPoliciesResult.json_to_check_policies(result_envelope.data)
             except Exception as err:
-                print "Error parsing response", err.message
+                print("Error parsing response", err.message)
 
         except requests.RequestException as err:
-            print "Unable to send http request", err.message
+            print("Unable to send http request", err.message)
 
         return result
 
@@ -82,7 +82,7 @@ class WssServiceClient:
                            'timeStamp': request.timeStamp,
                            'diff': sent_request_json}
         except Exception as err:
-            print "Not able to process request parameters", err.message
+            print("Not able to process request parameters", err.message)
         return params_dict
 
     def create_proxy(self):

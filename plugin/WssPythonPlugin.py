@@ -73,7 +73,7 @@ class SetupToolsCommand(Command):
             self.distDepend.pop(0)
             logging.info("Finished resolving dependencies")
         except Exception as err:
-            print "distribution was not found on this system, and is required by this application", err.message
+            print("distribution was not found on this system, and is required by this application", err.message)
 
     def run(self):
         self.validate_config_file()
@@ -110,7 +110,7 @@ class SetupToolsCommand(Command):
                         self.dependencyList.append(create_dependency_record(current_distribution))
 
                 except Exception as err:
-                    print "Error in fetching dists " + dist.key + " " + dist.version
+                    print("Error in fetching dists " + dist.key + " " + dist.version)
             logging.info("Finished calculation for all dependencies")
         else:
             logging.info("No dependencies were found")
@@ -231,9 +231,9 @@ def print_policies_rejection(result):
             projects_dict = dict(projects_dict.items() + create_policy_dict(result.existingProjects).items())
 
         if projects_dict is not None:
-            print print_project_policies_rejection(projects_dict)
+            print(print_project_policies_rejection(projects_dict))
     else:
-        print "There was a problem with the check policies result"
+        print("There was a problem with the check policies result")
         logging.DEBUG("The check policies result is empty")
 
 
@@ -300,9 +300,9 @@ def print_update_result(result):
             for project in updated_projects:
                 output += project + " "
 
-        print output
+        print(output)
     else:
-        print "There was a problem with the update result"
+        print("There was a problem with the update result")
         logging.debug("The update result is empty")
 
 
@@ -318,5 +318,5 @@ def open_required(file_name):
             req.append(dependency)
         return req
     except Exception as err:
-        print "No requirements file", err.message
+        print("No requirements file", err.message)
         return req
