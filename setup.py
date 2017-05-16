@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='WssPlugin_integration',
-    version='1.1.0',
+    version='1.1.1',
     description='Wss python pluging for creating/updating wss organization inventory',
     author='Yossi Weinberg',
     author_email='yossi.weinberg@whitesourcesoftware.com',
