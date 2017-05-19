@@ -153,7 +153,7 @@ class SetupToolsCommand(Command):
             if project_token == '':
                 project_token = None
 
-        return AgentProjectInfo(self.projectCoordinates, self.dependencyList, project_token)
+        return AgentProjectInfo(coordinates=self.projectCoordinates, dependencies=self.dependencyList, project_token=project_token)
 
     def check_policies(self, project_info, token, product_name, product_version):
         """ Sends the check policies request to the agent according to the request type """
