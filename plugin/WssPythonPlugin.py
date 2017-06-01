@@ -54,7 +54,8 @@ class SetupToolsCommand(Command):
             self.configDict = __import__('config_file').config_info
             logging.info('Loading config_file was successful')
         except Exception as err:
-            sys.exit("Can't import the config file." + err.message)
+            print("Can't import the config file.")
+            sys.exit(err)
 
         # load proxy setting if exist
         if 'proxy' in self.configDict:

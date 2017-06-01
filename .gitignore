@@ -1,7 +1,5 @@
-WssPlugin.egg-info/
 .idea/
 *.pyc
 build/
 dist/
 *.egg-info/
-
