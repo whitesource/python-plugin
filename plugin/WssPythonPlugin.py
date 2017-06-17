@@ -163,22 +163,32 @@ class SetupToolsCommand(Command):
             logging.debug("Checking policies")
 
             projects = [project_info]
-            request = CheckPoliciesRequest(token, product_name, product_version, projects)
+
+            if ('force_check_all_dependencies' in self.configDict) and (self.configDict['force_check_all_dependencies']):
+                request = CheckPoliciesRequest(token, product_name, product_version, projects, force_check_all_dependencies = True)
+            else:
+                request = CheckPoliciesRequest(token, product_name, product_version, projects)
             result = self.service.check_policies(request)
 
             try:
                 self.handle_policies_result(result)
             except Exception as err:
-                sys.exit("Some dependencies do not conform with open source policies")
+                print("Some dependencies do not conform with open source policies")
+                print(err)
+                sys.exit(1)
 
     def handle_policies_result(self, result):
         """ Checks if any policies rejected if so stops """
 
         logging.debug("Creating policies report")
         if result.has_rejections():
-            print_policies_rejection(result)
-            logging.info("Some dependencies do not conform with open source policies")
-            raise
+            if ('force_update' in self.configDict) and (self.configDict['force_update']):
+                logging.warning("Some dependencies do not conform with open source policies. "
+                                "However all dependencies were force updated to project inventory.")
+            else:
+                print_policies_rejection(result)
+                logging.info("Some dependencies do not conform with open source policies")
+                raise
         else:
             logging.debug("All dependencies conform with open source policies")
 
@@ -227,15 +237,15 @@ def print_policies_rejection(result):
         projects_dict = None
 
         if result.newProjects:
-            projects_dict = create_policy_dict(result.newProjects)
+            projects_dict = create_policy_dict(result.newProjects.items())
         if result.existingProjects:
-            projects_dict = dict(projects_dict.items() + create_policy_dict(result.existingProjects).items())
+            projects_dict = projects_dict.items() + create_policy_dict(dict(result.existingProjects).items())
 
         if projects_dict is not None:
             print(print_project_policies_rejection(projects_dict))
     else:
         print("There was a problem with the check policies result")
-        logging.DEBUG("The check policies result is empty")
+        logging.debug("The check policies result is empty")
 
 
 def print_project_policies_rejection(policy_dict):
@@ -265,7 +275,7 @@ def create_policy_dict(projects):
     policy_dict = defaultdict(list)
 
     # project iterator
-    for project, resource_node in projects.iteritems():
+    for project, resource_node in projects:
         rejected_node = PolicyCheckResourceNode.find_rejected_node(resource_node)
 
         # rejected node iterator

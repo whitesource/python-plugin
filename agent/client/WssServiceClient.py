@@ -38,6 +38,9 @@ class WssServiceClient:
         headers = {'Accept': 'application/json',
                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
         request_params = self.create_http_request(request)
+        if request.requestType == RequestType.CHECK_POLICY_COMPLIANCE:
+            if request.force_check_all_dependencies:
+                request_params['forceCheckAllDependencies'] = request.force_check_all_dependencies
 
         if self.proxySetting:
             proxy = self.create_proxy()
@@ -56,13 +59,15 @@ class WssServiceClient:
 
                 if request.requestType == RequestType.UPDATE:
                     result = UpdateInventoryResult.json_to_update_inventory(result_envelope.data)
-                if request.requestType == RequestType.CHECK_POLICIES:
+                if request.requestType == RequestType.CHECK_POLICY_COMPLIANCE:
                     result = CheckPoliciesResult.json_to_check_policies(result_envelope.data)
             except Exception as err:
-                print("Error parsing response", err.message)
+                print("Error parsing response")
+                print(err)
 
         except requests.RequestException as err:
-            print("Unable to send http request", err.message)
+            print("Unable to send http request")
+            print(err)
 
         return result
 
@@ -82,7 +87,8 @@ class WssServiceClient:
                            'timeStamp': request.timeStamp,
                            'diff': sent_request_json}
         except Exception as err:
-            print("Not able to process request parameters", err.message)
+            print("Not able to process request parameters")
+            print(err)
         return params_dict
 
     def create_proxy(self):

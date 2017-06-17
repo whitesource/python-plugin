@@ -33,7 +33,7 @@ class CheckPoliciesResult(object):
 
         has_rejections = False
         index = 0
-        roots = self.existingProjects.values() + self.newProjects.values()
+        roots = list(self.existingProjects.values()) + list(self.newProjects.values())
 
         while (not has_rejections) and (index < len(roots)):
             has_rejections = roots.pop(index).has_rejections()
