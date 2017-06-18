@@ -1,6 +1,8 @@
 import requests
 import logging
 import jsonpickle
+import sys
+
 from agent.api.dispatch.RequestType import RequestType
 from agent.api.dispatch import ResultEnvelope
 from agent.api.dispatch import UpdateInventoryResult
@@ -63,11 +65,11 @@ class WssServiceClient:
                     result = CheckPoliciesResult.json_to_check_policies(result_envelope.data)
             except Exception as err:
                 print("Error parsing response")
-                print(err)
+                sys.exit(err)
 
         except requests.RequestException as err:
             print("Unable to send http request")
-            print(err)
+            sys.exit(err)
 
         return result
 

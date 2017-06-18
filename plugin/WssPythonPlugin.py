@@ -1,3 +1,4 @@
+import importlib
 from collections import defaultdict
 import sys
 import shutil
@@ -51,7 +52,10 @@ class SetupToolsCommand(Command):
         # load and import config file
         try:
             sys.path.append(self.pathConfig)
-            self.configDict = __import__('config_file').config_info
+            config_file_spec = importlib.util.spec_from_file_location('config_file', self.pathConfig)
+            config_file_module = importlib.util.module_from_spec(config_file_spec)
+            config_file_spec.loader.exec_module(config_file_module)
+            self.configDict = config_file_module.config_info
             logging.info('Loading config_file was successful')
         except Exception as err:
             print("Can't import the config file.")
@@ -173,8 +177,7 @@ class SetupToolsCommand(Command):
             try:
                 self.handle_policies_result(result)
             except Exception as err:
-                print("Some dependencies do not conform with open source policies")
-                print(err)
+                logging.warning("Some dependencies do not conform with open source policies")
                 sys.exit(1)
 
     def handle_policies_result(self, result):
@@ -187,7 +190,6 @@ class SetupToolsCommand(Command):
                                 "However all dependencies were force updated to project inventory.")
             else:
                 print_policies_rejection(result)
-                logging.info("Some dependencies do not conform with open source policies")
                 raise
         else:
             logging.debug("All dependencies conform with open source policies")
@@ -239,7 +241,7 @@ def print_policies_rejection(result):
         if result.newProjects:
             projects_dict = create_policy_dict(result.newProjects.items())
         if result.existingProjects:
-            projects_dict = projects_dict.items() + create_policy_dict(dict(result.existingProjects).items())
+            projects_dict = create_policy_dict(result.existingProjects.items())
 
         if projects_dict is not None:
             print(print_project_policies_rejection(projects_dict))
