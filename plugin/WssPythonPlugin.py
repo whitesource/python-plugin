@@ -186,11 +186,11 @@ class SetupToolsCommand(Command):
         logging.debug("Creating policies report")
         if result.has_rejections():
             if ('force_update' in self.configDict) and (self.configDict['force_update']):
-                logging.warning("Some dependencies do not conform with open source policies. "
-                                "However all dependencies were force updated to project inventory.")
+                logging.warning("Some dependencies do not conform with open source policies. However all dependencies were force updated to project inventory.")
+                print_policies_rejection(result)
             else:
                 print_policies_rejection(result)
-                raise
+                raise Exception
         else:
             logging.debug("All dependencies conform with open source policies")
 
@@ -236,14 +236,14 @@ def print_policies_rejection(result):
     """ Prints the result of the check policies result"""
 
     if result is not None:
-        projects_dict = None
+        projects_dict = {}
 
         if result.newProjects:
-            projects_dict = create_policy_dict(result.newProjects.items())
+            projects_dict.update(create_policy_dict(result.newProjects.items()))
         if result.existingProjects:
-            projects_dict = create_policy_dict(result.existingProjects.items())
+            projects_dict.update(create_policy_dict(result.existingProjects.items()))
 
-        if projects_dict is not None:
+        if bool(projects_dict):
             print(print_project_policies_rejection(projects_dict))
     else:
         print("There was a problem with the check policies result")
