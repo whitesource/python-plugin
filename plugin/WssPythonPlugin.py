@@ -147,6 +147,8 @@ class SetupToolsCommand(Command):
             product_version = self.configDict['product_version']
 
         self.check_policies(project, org_token, product, product_version)
+
+
         self.update_inventory(project, org_token, product, product_version)
 
     def create_project_obj(self):
@@ -168,10 +170,9 @@ class SetupToolsCommand(Command):
 
             projects = [project_info]
 
-            if ('force_check_all_dependencies' in self.configDict) and (self.configDict['force_check_all_dependencies']):
-                request = CheckPoliciesRequest(token, product_name, product_version, projects, force_check_all_dependencies = True)
-            else:
-                request = CheckPoliciesRequest(token, product_name, product_version, projects)
+            force_check_all_dependencies = ('force_check_all_dependencies' in self.configDict) and (self.configDict['force_check_all_dependencies'])
+            request = CheckPoliciesRequest(token, product_name, product_version, projects, force_check_all_dependencies)
+
             result = self.service.check_policies(request)
 
             try:
@@ -190,6 +191,8 @@ class SetupToolsCommand(Command):
                 print_policies_rejection(result)
             else:
                 print_policies_rejection(result)
+
+            if ('fail_on_error' in self.configDict) and (self.configDict['fail_on_error']):
                 raise Exception
         else:
             logging.debug("All dependencies conform with open source policies")
