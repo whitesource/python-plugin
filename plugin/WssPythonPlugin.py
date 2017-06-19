@@ -140,16 +140,21 @@ class SetupToolsCommand(Command):
         product = ''
         product_version = ''
 
+        self.policy_violation = False
+
         if 'product_name' in self.configDict:
             product = self.configDict['product_name']
 
         if 'product_version' in self.configDict:
             product_version = self.configDict['product_version']
 
-        self.check_policies(project, org_token, product, product_version)
+        if self.configDict.get('check_policies'):
+            logging.debug("Checking policies")
+            self.check_policies(project, org_token, product, product_version)
 
-
-        self.update_inventory(project, org_token, product, product_version)
+        if (not self.policy_violation) or self.configDict.get('force_update'):
+            logging.debug("Updating inventory")
+            self.update_inventory(project, org_token, product, product_version)
 
     def create_project_obj(self):
         """ create the actual project """
@@ -165,35 +170,33 @@ class SetupToolsCommand(Command):
     def check_policies(self, project_info, token, product_name, product_version):
         """ Sends the check policies request to the agent according to the request type """
 
-        if ('check_policies' in self.configDict) and (self.configDict['check_policies']):
-            logging.debug("Checking policies")
+        projects = [project_info]
 
-            projects = [project_info]
+        force_check_all_dependencies = self.configDict.get('force_check_all_dependencies')
+        request = CheckPoliciesRequest(token, product_name, product_version, projects, force_check_all_dependencies)
 
-            force_check_all_dependencies = ('force_check_all_dependencies' in self.configDict) and (self.configDict['force_check_all_dependencies'])
-            request = CheckPoliciesRequest(token, product_name, product_version, projects, force_check_all_dependencies)
+        result = self.service.check_policies(request)
 
-            result = self.service.check_policies(request)
-
-            try:
-                self.handle_policies_result(result)
-            except Exception as err:
-                logging.warning("Some dependencies do not conform with open source policies")
-                sys.exit(1)
+        try:
+            self.handle_policies_result(result)
+        except Exception as err:
+            logging.warning("Some dependencies do not conform with open source policies")
+            sys.exit(1)
 
     def handle_policies_result(self, result):
         """ Checks if any policies rejected if so stops """
 
         logging.debug("Creating policies report")
         if result.has_rejections():
-            if ('force_update' in self.configDict) and (self.configDict['force_update']):
-                logging.warning("Some dependencies do not conform with open source policies. However all dependencies were force updated to project inventory.")
-                print_policies_rejection(result)
+            self.policy_violation = True
+            print("Some dependencies do not conform with open source policies:")
+            print_policies_rejection(result)
+            if self.configDict.get('force_update'):
+                print("However, all dependencies were force updated to project inventory.")
             else:
-                print_policies_rejection(result)
+                if self.configDict.get('fail_on_error'):
+                    raise Exception
 
-            if ('fail_on_error' in self.configDict) and (self.configDict['fail_on_error']):
-                raise Exception
         else:
             logging.debug("All dependencies conform with open source policies")
 
