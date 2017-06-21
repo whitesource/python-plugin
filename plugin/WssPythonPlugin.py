@@ -152,9 +152,26 @@ class SetupToolsCommand(Command):
             logging.debug("Checking policies")
             self.check_policies(project, org_token, product, product_version)
 
-        if (not self.policy_violation) or self.configDict.get('force_update'):
+        # no policy violations => send update and pass build
+        if not self.policy_violation:
             logging.debug("Updating inventory")
             self.update_inventory(project, org_token, product, product_version)
+
+        # policy violation AND force_update
+        elif self.configDict.get('force_update'):
+            print("However all dependencies will be force updated to project inventory.")
+            logging.debug("Updating inventory")
+            self.update_inventory(project, org_token, product, product_version)
+            # fail the build
+            if self.configDict.get('fail_on_error'):
+                print("Build failure due to policy violation (fail_on_error = True)")
+                sys.exit(1)
+
+        # policy violation AND (NOT force_update)
+        elif self.configDict.get('fail_on_error'):
+            # fail the build
+            print("Build failure due to policy violation (fail_on_error = True)")
+            sys.exit(1)
 
     def create_project_obj(self):
         """ create the actual project """
@@ -179,7 +196,7 @@ class SetupToolsCommand(Command):
 
         try:
             self.handle_policies_result(result)
-        except Exception as err:
+        except Exception:
             logging.warning("Some dependencies do not conform with open source policies")
             sys.exit(1)
 
@@ -191,14 +208,8 @@ class SetupToolsCommand(Command):
             self.policy_violation = True
             print("Some dependencies do not conform with open source policies:")
             print_policies_rejection(result)
-            if self.configDict.get('force_update'):
-                print("However, all dependencies were force updated to project inventory.")
-            else:
-                if self.configDict.get('fail_on_error'):
-                    raise Exception
-
         else:
-            logging.debug("All dependencies conform with open source policies")
+            logging.debug("All dependencies conform with open source policies!")
 
     def update_inventory(self, project_info, token, product_name, product_version):
         """ Sends the update request to the agent according to the request type """
