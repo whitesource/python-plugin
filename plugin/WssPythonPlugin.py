@@ -1,3 +1,4 @@
+import imp
 import importlib
 from collections import defaultdict
 import sys
@@ -52,10 +53,13 @@ class SetupToolsCommand(Command):
         # load and import config file
         try:
             sys.path.append(self.pathConfig)
-            config_file_spec = importlib.util.spec_from_file_location('config_file', self.pathConfig)
-            config_file_module = importlib.util.module_from_spec(config_file_spec)
-            config_file_spec.loader.exec_module(config_file_module)
-            self.configDict = config_file_module.config_info
+            if sys.version_info.major >= 3:
+                config_file_spec = importlib.util.spec_from_file_location('config_file', self.pathConfig)
+                config_file_module = importlib.util.module_from_spec(config_file_spec)
+                config_file_spec.loader.exec_module(config_file_module)
+                self.configDict = config_file_module.config_info
+            else:
+                self.configDict = imp.load_source('config_file', self.pathConfig).config_info
             logging.info('Loading config_file was successful')
         except Exception as err:
             print("Can't import the config file.")
