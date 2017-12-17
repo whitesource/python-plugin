@@ -20,6 +20,12 @@ from agent.api.dispatch.UpdateInventoryRequest import UpdateInventoryRequest
 from agent.api.dispatch.CheckPoliciesRequest import CheckPoliciesRequest
 from agent.client.WssServiceClient import WssServiceClient
 
+EQUALS = "=="
+
+REQUIREMENTS = "-r"
+
+DASH = "-"
+
 
 class SetupToolsCommand(Command):
     """setuptools Command"""
@@ -349,7 +355,16 @@ def open_required(file_name):
         with open(file_name) as f:
             dependencies = f.read().splitlines()
         for dependency in dependencies:
-            req.append(dependency)
+            # discard requirements commands
+            if dependency.startswith(DASH):
+                if dependency.startswith(REQUIREMENTS):
+                    next_file = dependency.split(EQUALS)[1]
+                    requirements = open_required(next_file)
+                    for r in requirements:
+                        req.append(r)
+                continue
+            else:
+                req.append(dependency)
         return req
     except Exception as err:
         print("No requirements file", err.message)
