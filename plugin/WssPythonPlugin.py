@@ -6,6 +6,8 @@ import shutil
 import tempfile
 import hashlib
 import logging
+import jsonpickle
+import errno
 from distutils.sysconfig import get_python_lib
 
 import pkg_resources as pk_res
@@ -24,6 +26,8 @@ SPACE = " "
 
 REQUIREMENTS = "-r"
 
+UPDATE_REQUEST_FILE = "whitesource/update_request.json"
+
 DASH = "-"
 
 
@@ -32,11 +36,13 @@ class SetupToolsCommand(Command):
     description = "Setuptools WSS plugin"
 
     user_options = [
+        ('offline=', 'o', 'Offline flag'),
         ('pathConfig=', 'p', 'Configuration file path'),
         ('debug=', 'd', 'Show debugging output'),
     ]
 
     def initialize_options(self):
+        self.offline = None
         self.debug = None
         self.proxySetting = None
         self.service = None
@@ -158,30 +164,34 @@ class SetupToolsCommand(Command):
         if 'product_version' in self.configDict:
             product_version = self.configDict['product_version']
 
-        if self.configDict.get('check_policies'):
-            logging.debug("Checking policies")
-            self.check_policies(project, org_token, product, product_version)
+        if self.configDict.get('offline') or self.offline:
+            logging.debug("Offline request")
+            offline_request(project, org_token, product, product_version)
+        else:
+            if self.configDict.get('check_policies'):
+                logging.debug("Checking policies")
+                self.check_policies(project, org_token, product, product_version)
 
-        # no policy violations => send update and pass build
-        if not self.policy_violation:
-            logging.debug("Updating inventory")
-            self.update_inventory(project, org_token, product, product_version)
+            # no policy violations => send update and pass build
+            if not self.policy_violation:
+                logging.debug("Updating inventory")
+                self.update_inventory(project, org_token, product, product_version)
 
-        # policy violation AND force_update
-        elif self.configDict.get('force_update'):
-            print("However all dependencies will be force updated to project inventory.")
-            logging.debug("Updating inventory")
-            self.update_inventory(project, org_token, product, product_version)
-            # fail the build
-            if self.configDict.get('fail_on_error'):
+            # policy violation AND force_update
+            elif self.configDict.get('force_update'):
+                print("However all dependencies will be force updated to project inventory.")
+                logging.debug("Updating inventory")
+                self.update_inventory(project, org_token, product, product_version)
+                # fail the build
+                if self.configDict.get('fail_on_error'):
+                    print("Build failure due to policy violation (fail_on_error = True)")
+                    sys.exit(1)
+
+            # policy violation AND (NOT force_update)
+            elif self.configDict.get('fail_on_error'):
+                # fail the build
                 print("Build failure due to policy violation (fail_on_error = True)")
                 sys.exit(1)
-
-        # policy violation AND (NOT force_update)
-        elif self.configDict.get('fail_on_error'):
-            # fail the build
-            print("Build failure due to policy violation (fail_on_error = True)")
-            sys.exit(1)
 
     def create_project_obj(self):
         """ create the actual project """
@@ -346,8 +356,49 @@ def print_update_result(result):
         logging.debug("The update result is empty")
 
 
+def offline_request(project_info, token, product_name, product_version):
+        """ Offline request """
+
+        projects = [project_info]
+        off_request = UpdateInventoryRequest(token, product_name, product_version, projects);
+
+        if not os.path.exists(os.path.dirname(UPDATE_REQUEST_FILE)):
+            try:
+                os.makedirs(os.path.dirname(UPDATE_REQUEST_FILE))
+            except OSError as exc:  # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
+
+        with open(UPDATE_REQUEST_FILE, "wb") as f:
+            result = jsonpickle.encode(off_request, unpicklable=False)
+            f.write(result)
+
+
+def run_setup(file_name):
+    """ Creates a list of package dependencies as a requirement string from the setup.py file"""
+    req = open_required(file_name)
+    # Todo: add functionality to run setuptools and wss_plugin logic on existing setup.py
+
+
+def open_setup(file_name):
+    """ Creates a list of package dependencies as a requirement string from the setup.py file"""
+
+    import setuptools
+    import mock
+    req = []
+    try:
+        with mock.patch.object(setuptools, file_name) as mock_setup:
+            import setup
+        args, kwargs = mock_setup.call_args
+        req = kwargs.get('install_requires', [])
+        return req
+    except Exception as err:
+        print("No setup file", err.message)
+        return req
+
+
 def open_required(file_name):
-    """ Creates a list of package dependencies as a requirement string from the file"""
+    """ Creates a list of package dependencies as a requirement string from the requirements.txt file"""
 
     req = []
     try:
