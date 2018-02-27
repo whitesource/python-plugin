@@ -19,7 +19,7 @@ def json_to_update_inventory(json):
         logging.debug("The UpdateInventoryResult instance is ready")
         return update_inventory
     except Exception as err:
-        print json
+        logging.debug(json)
         print("Unable to parse json to UpdateInventoryResult object", err.message)
         raise
 

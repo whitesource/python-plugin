@@ -9,6 +9,7 @@ import logging
 import jsonpickle
 import errno
 from distutils.sysconfig import get_python_lib
+from pip.req import parse_requirements
 
 import pkg_resources as pk_res
 from setuptools import Command
@@ -202,7 +203,8 @@ class SetupToolsCommand(Command):
             if project_token == '':
                 project_token = None
 
-        return AgentProjectInfo(coordinates=self.projectCoordinates, dependencies=self.dependencyList, project_token=project_token)
+        return AgentProjectInfo(coordinates=self.projectCoordinates, dependencies=self.dependencyList,
+                                project_token=project_token)
 
     def check_policies(self, project_info, token, product_name, product_version):
         """ Sends the check policies request to the agent according to the request type """
@@ -357,21 +359,21 @@ def print_update_result(result):
 
 
 def offline_request(project_info, token, product_name, product_version):
-        """ Offline request """
+    """ Offline request """
 
-        projects = [project_info]
-        off_request = UpdateInventoryRequest(token, product_name, product_version, projects);
+    projects = [project_info]
+    off_request = UpdateInventoryRequest(token, product_name, product_version, projects);
 
-        if not os.path.exists(os.path.dirname(UPDATE_REQUEST_FILE)):
-            try:
-                os.makedirs(os.path.dirname(UPDATE_REQUEST_FILE))
-            except OSError as exc:  # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
+    if not os.path.exists(os.path.dirname(UPDATE_REQUEST_FILE)):
+        try:
+            os.makedirs(os.path.dirname(UPDATE_REQUEST_FILE))
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
 
-        with open(UPDATE_REQUEST_FILE, "wb") as f:
-            result = jsonpickle.encode(off_request, unpicklable=False)
-            f.write(result)
+    with open(UPDATE_REQUEST_FILE, "w") as f:
+        result = jsonpickle.encode(off_request, unpicklable=False)
+        f.write(result)
 
 
 def run_setup(file_name):
@@ -397,6 +399,12 @@ def open_setup(file_name):
         return req
 
 
+def open_required_pip(file_name):
+    install_requirements = parse_requirements(file_name, session='hack')
+    records = [str(ir.req) for ir in install_requirements]
+    return records
+
+# todo deprecated.to be deleted in the next version
 def open_required(file_name):
     """ Creates a list of package dependencies as a requirement string from the requirements.txt file"""
 
