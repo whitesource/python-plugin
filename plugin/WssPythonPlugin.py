@@ -351,7 +351,7 @@ def print_update_result(result):
             output += str(updated_projects_num) + " existing projects were updated: "
             for project in updated_projects:
                 output += project + " "
-
+            output += "\nrequest_token: " + result.orgToken
         print(output)
     else:
         print("There was a problem with the update result")
