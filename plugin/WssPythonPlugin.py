@@ -9,7 +9,13 @@ import logging
 import jsonpickle
 import errno
 from distutils.sysconfig import get_python_lib
-from pip.req import parse_requirements
+
+#WSE-402 add support for pip 9 and pip 10
+try:
+    from pip._internal.req import parse_requirements
+except ImportError:
+    from pip.req import parse_requirements
+
 
 import pkg_resources as pk_res
 from setuptools import Command
@@ -402,6 +408,7 @@ def open_setup(file_name):
 def open_required_pip(file_name):
     install_requirements = parse_requirements(file_name, session='hack')
     records = [str(ir.req) for ir in install_requirements]
+    #return open_required(file_name)
     return records
 
 # todo deprecated.to be deleted in the next version
