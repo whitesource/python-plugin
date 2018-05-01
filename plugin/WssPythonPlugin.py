@@ -91,7 +91,7 @@ class SetupToolsCommand(Command):
             self.pkgIndex = PackageIndex(index_url=self.configDict['index_url'])
 
         self.projectCoordinates = Coordinates.create_project_coordinates(self.distribution)
-        self.userEnvironment = pk_res.Environment(get_python_lib(), platform=None, python=None)
+        self.userEnvironment = pk_res.Environment([get_python_lib()], platform=None, python=None)
         distribution_specification = self.distribution.get_name() + "==" + self.distribution.get_version()
         distribution_requirement = pk_res.Requirement.parse(distribution_specification)
 
