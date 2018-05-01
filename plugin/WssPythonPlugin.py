@@ -159,6 +159,7 @@ class SetupToolsCommand(Command):
         """ Initializes the plugin requests"""
 
         org_token = self.configDict['org_token']
+        user_key = ''
         project = self.create_project_obj()
         product = ''
         product_version = ''
@@ -168,27 +169,30 @@ class SetupToolsCommand(Command):
         if 'product_name' in self.configDict:
             product = self.configDict['product_name']
 
+        if 'user_key' in self.configDict:
+            user_key = self.configDict['user_key']
+
         if 'product_version' in self.configDict:
             product_version = self.configDict['product_version']
 
         if self.configDict.get('offline') or self.offline:
             logging.debug("Offline request")
-            offline_request(project, org_token, product, product_version)
+            offline_request(project, org_token, user_key, product, product_version)
         else:
             if self.configDict.get('check_policies'):
                 logging.debug("Checking policies")
-                self.check_policies(project, org_token, product, product_version)
+                self.check_policies(project, org_token, user_key, product, product_version)
 
             # no policy violations => send update and pass build
             if not self.policy_violation:
                 logging.debug("Updating inventory")
-                self.update_inventory(project, org_token, product, product_version)
+                self.update_inventory(project, org_token, user_key, product, product_version)
 
             # policy violation AND force_update
             elif self.configDict.get('force_update'):
                 print("However all dependencies will be force updated to project inventory.")
                 logging.debug("Updating inventory")
-                self.update_inventory(project, org_token, product, product_version)
+                self.update_inventory(project, org_token, user_key, product, product_version)
                 # fail the build
                 if self.configDict.get('fail_on_error'):
                     print("Build failure due to policy violation (fail_on_error = True)")
@@ -212,13 +216,13 @@ class SetupToolsCommand(Command):
         return AgentProjectInfo(coordinates=self.projectCoordinates, dependencies=self.dependencyList,
                                 project_token=project_token)
 
-    def check_policies(self, project_info, token, product_name, product_version):
+    def check_policies(self, project_info, token, user_key, product_name, product_version):
         """ Sends the check policies request to the agent according to the request type """
 
         projects = [project_info]
 
         force_check_all_dependencies = self.configDict.get('force_check_all_dependencies')
-        request = CheckPoliciesRequest(token, product_name, product_version, projects, force_check_all_dependencies)
+        request = CheckPoliciesRequest(token, user_key, product_name, product_version, projects, force_check_all_dependencies)
 
         result = self.service.check_policies(request)
 
@@ -239,13 +243,13 @@ class SetupToolsCommand(Command):
         else:
             logging.debug("All dependencies conform with open source policies!")
 
-    def update_inventory(self, project_info, token, product_name, product_version):
+    def update_inventory(self, project_info, token, user_key, product_name, product_version):
         """ Sends the update request to the agent according to the request type """
 
         logging.debug("Updating White Source")
 
         projects = [project_info]
-        request = UpdateInventoryRequest(token, product_name, product_version, projects)
+        request = UpdateInventoryRequest(token, user_key, product_name, product_version, projects)
         result = self.service.update_inventory(request)
         print_update_result(result)
 
@@ -357,18 +361,18 @@ def print_update_result(result):
             output += str(updated_projects_num) + " existing projects were updated: "
             for project in updated_projects:
                 output += project + " "
-            output += "\nrequest_token: " + result.orgToken
+        output += "\nrequest_token: " + result.orgToken
         print(output)
     else:
         print("There was a problem with the update result")
         logging.debug("The update result is empty")
 
 
-def offline_request(project_info, token, product_name, product_version):
+def offline_request(project_info, token, user_key, product_name, product_version):
     """ Offline request """
 
     projects = [project_info]
-    off_request = UpdateInventoryRequest(token, product_name, product_version, projects);
+    off_request = UpdateInventoryRequest(token, user_key, product_name, product_version, projects);
 
     if not os.path.exists(os.path.dirname(UPDATE_REQUEST_FILE)):
         try:

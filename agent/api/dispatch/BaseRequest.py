@@ -4,9 +4,10 @@ import time
 class BaseRequest:
     """ The base request object, to be inherited by different request objects"""
 
-    def __init__(self, org_token, product, product_version, req_type):
+    def __init__(self, org_token, user_key, product, product_version, req_type):
         self.requestType = req_type
         self.orgToken = org_token
+        self.userKey = user_key
         self.product = product
         self.productVersion = product_version
         self.timeStamp = str(int(time.time()))

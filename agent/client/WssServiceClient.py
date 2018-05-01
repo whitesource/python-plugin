@@ -8,6 +8,10 @@ from agent.api.dispatch import ResultEnvelope
 from agent.api.dispatch import UpdateInventoryResult
 from agent.api.dispatch import CheckPoliciesResult
 
+UTF8 = "utf-8"
+
+INVALID_USER_KEY = "Invalid User Key"
+
 
 class WssServiceClient:
     """ Http request creation and execution (update/check_policies) """
@@ -64,7 +68,13 @@ class WssServiceClient:
                 if request.requestType == RequestType.CHECK_POLICY_COMPLIANCE:
                     result = CheckPoliciesResult.json_to_check_policies(result_envelope.data)
             except Exception as err:
-                print("Error parsing response")
+                if response is not None and response.content is not None:
+                    if response.content.decode(UTF8).__contains__(INVALID_USER_KEY):
+                        print("Error: " + INVALID_USER_KEY)
+                    else:
+                        print("Error parsing response")
+                else:
+                    print("Error parsing response")
                 sys.exit(err)
 
         except requests.RequestException as err:
@@ -84,6 +94,7 @@ class WssServiceClient:
                            'agent': request.agent,
                            'agentVersion': request.agentVersion,
                            'token': request.orgToken,
+                           'userKey': request.userKey,
                            'product': request.product,
                            'productVersion': request.productVersion,
                            'timeStamp': request.timeStamp,
