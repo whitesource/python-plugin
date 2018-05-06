@@ -69,10 +69,17 @@ class WssServiceClient:
                     result = CheckPoliciesResult.json_to_check_policies(result_envelope.data)
             except Exception as err:
                 if response is not None and response.content is not None:
-                    if response.content.decode(UTF8).__contains__(INVALID_USER_KEY):
-                        print("Error: " + INVALID_USER_KEY)
-                    else:
+                    try:
+                        json_dict = jsonpickle.decode(response.content)
+                        message = json_dict["message"]
+                        if message is not None and message is not "":
+                            print("Error: " + message)
+                            sys.exit(1)
+                        else:
+                            print("Error parsing response")
+                    except Exception as err:
                         print("Error parsing response")
+                        sys.exit(err)
                 else:
                     print("Error parsing response")
                 sys.exit(err)
