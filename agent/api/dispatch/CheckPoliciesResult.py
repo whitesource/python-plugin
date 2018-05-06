@@ -55,7 +55,7 @@ def json_to_check_policies(json):
         return check_policies
     except Exception as err:
         logging.debug(json)
-        print("Unable to parse json to CheckPoliciesResult object", err.message)
+        # print("Unable to parse json to CheckPoliciesResult object", err.message)
         raise
 
 

@@ -73,8 +73,12 @@ class WssServiceClient:
                         json_dict = jsonpickle.decode(response.content)
                         message = json_dict["message"]
                         if message is not None and message is not "":
-                            print("Error: " + message)
-                            sys.exit(1)
+                            data = json_dict["data"]
+                            if data is not None and data is not "":
+                                print("Error: " + message + " - " + data)
+                                sys.exit(1)
+                            else:
+                                print("Error: " + message)
                         else:
                             print("Error parsing response")
                     except Exception as err:
