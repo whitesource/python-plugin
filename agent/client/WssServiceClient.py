@@ -2,6 +2,7 @@ import requests
 import logging
 import jsonpickle
 import sys
+import time
 
 from agent.api.dispatch.RequestType import RequestType
 from agent.api.dispatch import ResultEnvelope
@@ -26,17 +27,17 @@ class WssServiceClient:
         result = "service url= " + self.serviceUrl
         return result
 
-    def update_inventory(self, update_request):
+    def update_inventory(self, update_request, connection_retries=0, connection_retries_interval=0):
         """ Create update request """
 
-        return self.service(update_request)
+        return self.service(update_request, connection_retries, connection_retries_interval)
 
-    def check_policies(self, policies_request):
+    def check_policies(self, policies_request, connection_retries=0, connection_retries_interval=0):
         """ Create check policies request """
 
-        return self.service(policies_request)
+        return self.service(policies_request, connection_retries, connection_retries_interval)
 
-    def service(self, request):
+    def service(self, request, connection_retries=0, connection_retries_interval=0):
         """ Sends http request and parses the response """
 
         proxy = None
@@ -54,6 +55,7 @@ class WssServiceClient:
         logging.debug("The request params are:\n" + print_request_params(request_params))
         logging.debug("Sending the http request")
 
+        connection_ok = True
         try:
             # send http request
             response = requests.post(self.serviceUrl, headers=headers, data=request_params, proxies=proxy)
@@ -86,13 +88,26 @@ class WssServiceClient:
                         sys.exit(err)
                 else:
                     print("Error parsing response")
-                sys.exit(err)
+                if connection_retries <= 0:
+                    sys.exit(err)
+                else:
+                    connection_ok = False
 
         except requests.RequestException as err:
             print("Unable to send http request")
-            sys.exit(err)
+            if connection_retries <= 0:
+                sys.exit(err)
+            else:
+                connection_ok = False
 
-        return result
+        if connection_ok is False and connection_retries > 0:
+            print("Failed to send request to WhiteSource server")
+            print("Trying " + str(connection_retries) + " more time(s)")
+            time.sleep(connection_retries_interval)
+            connection_retries = connection_retries-1
+            return self.service(request, connection_retries, connection_retries_interval)
+        else:
+            return result
 
     def create_http_request(self, request):
         """ Create the actual http request to be sent to the agent """

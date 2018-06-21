@@ -163,6 +163,8 @@ class SetupToolsCommand(Command):
         project = self.create_project_obj()
         product = ''
         product_version = ''
+        self.connection_retries = 1
+        self.connection_retries_interval = 3
 
         self.policy_violation = False
 
@@ -174,6 +176,12 @@ class SetupToolsCommand(Command):
 
         if 'product_version' in self.configDict:
             product_version = self.configDict['product_version']
+
+        if 'connection_retries' in self.configDict:
+            self.connection_retries = self.configDict['connection_retries']
+
+        if 'connection_retries_interval' in self.configDict:
+            self.connection_retries_interval = self.configDict['connection_retries_interval']
 
         if self.configDict.get('offline') or self.offline:
             logging.debug("Offline request")
@@ -224,7 +232,7 @@ class SetupToolsCommand(Command):
         force_check_all_dependencies = self.configDict.get('force_check_all_dependencies')
         request = CheckPoliciesRequest(token, user_key, product_name, product_version, projects, force_check_all_dependencies)
 
-        result = self.service.check_policies(request)
+        result = self.service.check_policies(request, self.connection_retries, self.connection_retries_interval)
 
         try:
             self.handle_policies_result(result)
@@ -250,7 +258,7 @@ class SetupToolsCommand(Command):
 
         projects = [project_info]
         request = UpdateInventoryRequest(token, user_key, product_name, product_version, projects)
-        result = self.service.update_inventory(request)
+        result = self.service.update_inventory(request, self.connection_retries, self.connection_retries_interval)
         print_update_result(result)
 
 
