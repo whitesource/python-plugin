@@ -94,9 +94,9 @@ class WssServiceClient:
                     connection_ok = False
 
         except requests.RequestException as err:
-            print("Unable to send http request")
+            print("Unable to send http request: {0}".format(err))
             if connection_retries <= 0:
-                sys.exit(err)
+                sys.exit(1)
             else:
                 connection_ok = False
 
