@@ -23,7 +23,7 @@ def json_to_result_envelope(json):
     """ Converts json result from server into a ResultEnvelope object"""
 
     try:
-        json_dict = jsonpickle.decode(json)
+        json_dict = jsonpickle.decode(json.decode("utf-8"))
         res_env = ResultEnvelope(json_dict['envelopeVersion'], json_dict['status'], json_dict['message'],
                                  json_dict['data'])
         logging.debug("The resulted envelope is: " + res_env.to_string())

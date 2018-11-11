@@ -46,7 +46,7 @@ def json_to_check_policies(json):
     """ Converts json result from server into a CheckPoliciesResult"""
 
     try:
-        json_dict = jsonpickle.decode(json)
+        json_dict = jsonpickle.decode(json.decode("utf-8"))
         check_policies = CheckPoliciesResult(json_dict['organization'],
                                              from_dict_to_resource_node(json_dict['existingProjects']),
                                              from_dict_to_resource_node(json_dict['newProjects']),

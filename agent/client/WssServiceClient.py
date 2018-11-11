@@ -72,7 +72,7 @@ class WssServiceClient:
             except Exception as err:
                 if response is not None and response.content is not None:
                     try:
-                        json_dict = jsonpickle.decode(response.content)
+                        json_dict = jsonpickle.decode(response.content.decode("utf-8"))
                         message = json_dict["message"]
                         if message is not None and message is not "":
                             data = json_dict["data"]
