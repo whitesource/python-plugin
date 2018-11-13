@@ -14,7 +14,7 @@ def json_to_update_inventory(json):
     """ Converts json result from server into a UpdateInventoryResult"""
 
     try:
-        json_dict = jsonpickle.decode(json.decode("utf-8"))
+        json_dict = jsonpickle.decode(json)
         update_inventory = UpdateInventoryResult(json_dict['organization'], json_dict['updatedProjects'],
                                                  json_dict['createdProjects'], json_dict['requestToken'])
         logging.debug("The UpdateInventoryResult instance is ready")
